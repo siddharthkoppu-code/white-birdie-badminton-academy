@@ -482,6 +482,134 @@ class FirebaseService {
             }
         });
     }
+
+    // ================= COACH PIN AUTHENTICATION =================
+
+    // Verify Coach PIN (4-digit quick access)
+    async verifyCoachPIN(pin) {
+        if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+            return false;
+        }
+
+        // Try Firestore first
+        if (this.db) {
+            try {
+                const doc = await this.db.collection("system").doc("coachPIN").get();
+                if (doc.exists) {
+                    const storedPin = doc.data().pin;
+                    if (storedPin === pin) {
+                        // PIN verified - auto-login as coach role
+                        this.currentUser = {
+                            uid: "pin-authenticated-coach",
+                            email: "coach@whitebirdie.local",
+                            displayName: "Coach (PIN Login)",
+                            photoURL: "https://ui-avatars.com/api/?name=Coach&background=0F382C&color=10B981",
+                            role: "coach",
+                            linkedPlayerId: null
+                        };
+                        this.userRole = "coach";
+                        this.linkedPlayerId = null;
+
+                        // Persist session
+                        try {
+                            localStorage.setItem(this.storageKeyPrefix + "session_user", JSON.stringify(this.currentUser));
+                            localStorage.setItem(this.storageKeyPrefix + "session_role", "coach");
+                        } catch (e) {}
+
+                        this.notifyAuthSubscribers();
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.warn("Firestore PIN verification fallback:", e.message);
+            }
+        }
+
+        // Fallback to localStorage
+        try {
+            const storedPin = localStorage.getItem(this.storageKeyPrefix + "coach_pin");
+            if (storedPin === pin) {
+                this.currentUser = {
+                    uid: "pin-authenticated-coach",
+                    email: "coach@whitebirdie.local",
+                    displayName: "Coach (PIN Login)",
+                    photoURL: "https://ui-avatars.com/api/?name=Coach&background=0F382C&color=10B981",
+                    role: "coach",
+                    linkedPlayerId: null
+                };
+                this.userRole = "coach";
+                this.linkedPlayerId = null;
+
+                try {
+                    localStorage.setItem(this.storageKeyPrefix + "session_user", JSON.stringify(this.currentUser));
+                    localStorage.setItem(this.storageKeyPrefix + "session_role", "coach");
+                } catch (e) {}
+
+                this.notifyAuthSubscribers();
+                return true;
+            }
+        } catch (e) {}
+
+        return false;
+    }
+
+    // Set Coach PIN (Master Admin only)
+    async setCoachPIN(pin) {
+        // Enforce Master Admin check
+        if (this.userRole !== "admin") {
+            throw new Error("Unauthorized: Only Master Admin can set the Coach PIN.");
+        }
+
+        if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+            throw new Error("PIN must be exactly 4 digits (0-9).");
+        }
+
+        // Save to Firestore
+        if (this.db) {
+            try {
+                await this.db.collection("system").doc("coachPIN").set({
+                    pin: pin,
+                    setBy: this.currentUser.email,
+                    setAt: new Date().toISOString()
+                });
+            } catch (e) {
+                console.warn("Firestore PIN save fallback:", e.message);
+            }
+        }
+
+        // Save to localStorage fallback
+        try {
+            localStorage.setItem(this.storageKeyPrefix + "coach_pin", pin);
+        } catch (e) {}
+
+        return { success: true, pin: pin };
+    }
+
+    // Get current Coach PIN (Master Admin only)
+    async getCoachPIN() {
+        if (this.userRole !== "admin") {
+            throw new Error("Unauthorized: Only Master Admin can view the Coach PIN.");
+        }
+
+        // Try Firestore first
+        if (this.db) {
+            try {
+                const doc = await this.db.collection("system").doc("coachPIN").get();
+                if (doc.exists) {
+                    return doc.data().pin || null;
+                }
+            } catch (e) {
+                console.warn("Firestore PIN retrieval fallback:", e.message);
+            }
+        }
+
+        // Fallback to localStorage
+        try {
+            return localStorage.getItem(this.storageKeyPrefix + "coach_pin") || null;
+        } catch (e) {
+            return null;
+        }
+    }
 }
 
 // Global instance

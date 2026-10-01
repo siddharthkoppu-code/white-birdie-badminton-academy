@@ -28,6 +28,75 @@ async function initApp() {
     setupPublicRegistrationForm();
     setupModals();
     setupPhotoUploadPreview();
+    initToastSystem();
+}
+
+// ================= TOAST NOTIFICATION SYSTEM =================
+function initToastSystem() {
+    // Create toast container if it doesn't exist
+    if (!document.getElementById("toast-container")) {
+        const container = document.createElement("div");
+        container.id = "toast-container";
+        container.className = "fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none";
+        document.body.appendChild(container);
+    }
+}
+
+function showToast(message, type = "info") {
+    const container = document.getElementById("toast-container");
+    if (!container) {
+        console.warn("Toast container not found");
+        return;
+    }
+
+    const toast = document.createElement("div");
+    toast.className = "pointer-events-auto transform translate-x-full transition-transform duration-300 ease-out";
+
+    const bgColors = {
+        success: "bg-emerald-950/95 border-emerald-500/50",
+        error: "bg-rose-950/95 border-rose-500/50",
+        warning: "bg-amber-950/95 border-amber-500/50",
+        info: "bg-slate-950/95 border-slate-500/50"
+    };
+
+    const textColors = {
+        success: "text-emerald-300",
+        error: "text-rose-300",
+        warning: "text-amber-300",
+        info: "text-slate-300"
+    };
+
+    const icons = {
+        success: "✓",
+        error: "✗",
+        warning: "⚠",
+        info: "ℹ"
+    };
+
+    toast.innerHTML = `
+        <div class="px-4 py-3 rounded-xl ${bgColors[type]} border backdrop-blur-md shadow-2xl flex items-start gap-3 min-w-[280px] max-w-md">
+            <span class="text-lg font-bold ${textColors[type]} flex-shrink-0">${icons[type]}</span>
+            <p class="text-sm ${textColors[type]} flex-1 leading-relaxed">${message}</p>
+            <button onclick="this.closest('.transform').remove()" class="text-slate-400 hover:text-white transition flex-shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    // Slide in
+    setTimeout(() => {
+        toast.classList.remove("translate-x-full");
+        toast.classList.add("translate-x-0");
+    }, 10);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        toast.classList.add("translate-x-full");
+        toast.classList.remove("translate-x-0");
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
 }
 
 // ================= AUTH UI STATE =================
@@ -51,24 +120,41 @@ function updateAuthUI(user, role) {
     }
 }
 
-// ================= SECRET CLICK SEQUENCE =================
+// ================= SECRET CLICK TRIGGER (3 Clicks on "Mentorship & Excellence") =================
+let secretClickCount = 0;
+let secretClickTimer = null;
+
 function setupSecretSequence() {
-    const step1 = document.getElementById("secret-trigger-step1"); // Nav Shuttlecock Logo
-    const step2 = document.getElementById("secret-trigger-step2"); // Coach Krishna Badge in Hero
-    const step3 = document.getElementById("secret-trigger-step3"); // Kodathi Location Pin
-    const step4 = document.getElementById("secret-trigger-step4"); // Footer Gold Feather
+    // 3 clicks on "Mentorship & Excellence" badge to open coach login
+    const mentorshipBadges = document.querySelectorAll(".secret-trigger-mentorship");
+    mentorshipBadges.forEach(el => {
+        el.addEventListener("click", () => {
+            secretClickCount++;
+            clearTimeout(secretClickTimer);
 
-    const triggerTargets = [
-        { el: step1, step: 1, name: "Navbar Shuttlecock" },
-        { el: step2, step: 2, name: "Coach Krishna Badge" },
-        { el: step3, step: 3, name: "Kodathi Pin" },
-        { el: step4, step: 4, name: "Footer Feather Emblem" }
-    ];
+            // Visual feedback
+            el.classList.add("scale-105");
+            setTimeout(() => el.classList.remove("scale-105"), 200);
 
-    triggerTargets.forEach(({ el, step, name }) => {
-        if (!el) return;
-        el.addEventListener("click", (e) => {
-            handleSecretStepClick(step, el, name);
+            if (secretClickCount === 1) {
+                showSecretNotification("✨ 1/3 clicks...");
+            } else if (secretClickCount === 2) {
+                showSecretNotification("✨ 2/3 clicks...");
+            } else if (secretClickCount >= 3) {
+                secretClickCount = 0;
+                if (typeof confetti !== "undefined") {
+                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+                }
+                showSecretNotification("✨ Access unlocked! Opening Coach Login...");
+                setTimeout(() => {
+                    openCoachLoginModal();
+                }, 300);
+            }
+
+            // Reset counter after 2 seconds of inactivity
+            secretClickTimer = setTimeout(() => {
+                secretClickCount = 0;
+            }, 2000);
         });
     });
 
@@ -88,39 +174,6 @@ function setupSecretSequence() {
             e.preventDefault();
             openCoachLoginModal();
         });
-    }
-}
-
-function handleSecretStepClick(stepNumber, element, stepName) {
-    if (stepNumber === secretStepProgress + 1) {
-        // Correct step in sequence!
-        secretStepProgress = stepNumber;
-        triggerSparkleAnimation(element);
-
-        console.log(`🎯 Secret Sequence: Step ${secretStepProgress}/${SECRET_STEPS_TOTAL} completed (${stepName})`);
-
-        // Give subtle audio/visual feedback
-        showSecretNotification(`✨ Secret Access: Step ${secretStepProgress}/${SECRET_STEPS_TOTAL} verified...`);
-
-        if (secretStepProgress === SECRET_STEPS_TOTAL) {
-            // Sequence completed!
-            secretStepProgress = 0;
-            if (typeof confetti !== "undefined") {
-                confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
-            }
-            setTimeout(() => {
-                openCoachLoginModal();
-            }, 400);
-        }
-    } else if (stepNumber === 1) {
-        // Reset to step 1
-        secretStepProgress = 1;
-        triggerSparkleAnimation(element);
-        showSecretNotification(`✨ Secret Access: Step 1/${SECRET_STEPS_TOTAL} verified...`);
-    } else {
-        // Wrong order - reset
-        secretStepProgress = 0;
-        console.log("Secret sequence reset (wrong order).");
     }
 }
 
@@ -229,6 +282,50 @@ function setupModals() {
     const btnCloseLogin = document.getElementById("btn-close-coach-login");
     if (btnCloseLogin) btnCloseLogin.addEventListener("click", closeCoachLoginModal);
 
+    // PIN Sign-In button
+    const btnPinSignIn = document.getElementById("btn-pin-signin");
+    const pinInput = document.getElementById("coach-pin-input");
+    if (btnPinSignIn && pinInput) {
+        btnPinSignIn.addEventListener("click", async () => {
+            const enteredPin = pinInput.value.trim();
+            if (!enteredPin || enteredPin.length !== 4) {
+                showToast("Please enter a 4-digit PIN", "error");
+                return;
+            }
+
+            try {
+                const result = await window.wbFirebaseService.verifyCoachPIN(enteredPin);
+                if (result) {
+                    showToast("✓ PIN verified! Welcome, Coach!", "success");
+                    closeCoachLoginModal();
+                    openCoachPortal();
+                    pinInput.value = "";
+                } else {
+                    showToast("✗ Invalid PIN. Try again or use Google Sign-In.", "error");
+                    pinInput.value = "";
+                }
+            } catch (e) {
+                showToast("PIN verification error: " + e.message, "error");
+            }
+        });
+
+        // Allow Enter key to submit PIN
+        pinInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                btnPinSignIn.click();
+            }
+        });
+    }
+
+    // Parent/Student Login button
+    const btnOpenParentLogin = document.getElementById("btn-open-parent-login");
+    if (btnOpenParentLogin) {
+        btnOpenParentLogin.addEventListener("click", () => {
+            openCoachLoginModal(); // Opens same modal - parents use Google Sign-In
+        });
+    }
+
     // Google Sign-In button - Real Firebase Authentication
     const btnGoogleAuth = document.getElementById("btn-google-signin");
     if (btnGoogleAuth) {
@@ -244,7 +341,7 @@ function setupModals() {
                     // Show styled error modal for unauthorized users
                     showUnauthorizedModal(e.email);
                 } else {
-                    alert("⚠️ Sign-In Error:\n\n" + e.message);
+                    showToast("⚠️ Sign-In Error: " + e.message, "error");
                 }
             }
         });
@@ -336,7 +433,7 @@ function setupPublicRegistrationForm() {
         const medicalNotes = document.getElementById("reg-medical").value.trim();
 
         if (!name || !phone) {
-            alert("Please fill in Name and Phone Number.");
+            showToast("Please fill in Name and Phone Number.", "error");
             return;
         }
 
@@ -385,8 +482,8 @@ function setupPublicRegistrationForm() {
             confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 } });
         }
 
-        // Show confirmation popup
-        alert(`🏸 Congratulations ${name}!\n\nYour registration with White Birdie Badminton Academy has been submitted successfully.\n\nCoach Mr. Krishna and our academy team will review your batch preference and contact you at ${phone}.\n\nWelcome to the Academy!`);
+        // Show confirmation notification
+        showToast(`🏸 Congratulations ${name}! Your registration has been submitted successfully. Coach Mr. Krishna will contact you at ${phone}. Welcome to the Academy!`, "success");
     });
 }
 

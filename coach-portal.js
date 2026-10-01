@@ -729,7 +729,7 @@ class CoachPortal {
     async setAttendanceStatus(playerId, status) {
         const role = window.wbFirebaseService.userRole;
         if (role !== "admin" && role !== "coach") {
-            alert("🔒 Access is in 'View Only' mode. Contact Master Coach for edit permissions.");
+            showToast("🔒 Access is in 'View Only' mode. Contact Master Coach for edit permissions.", "warning");
             return;
         }
 
@@ -748,7 +748,7 @@ class CoachPortal {
     async markAllAttendance(status) {
         const role = window.wbFirebaseService.userRole;
         if (role !== "admin" && role !== "coach") {
-            alert("🔒 Access is in 'View Only' mode.");
+            showToast("🔒 Access is in 'View Only' mode.", "warning");
             return;
         }
 
@@ -899,7 +899,7 @@ class CoachPortal {
     async handleGenerateCertificate() {
         const role = window.wbFirebaseService.userRole;
         if (role !== "admin" && role !== "coach") {
-            alert("🔒 Access is in 'View Only' mode.");
+            showToast("🔒 Access is in 'View Only' mode.", "warning");
             return;
         }
 
@@ -912,7 +912,7 @@ class CoachPortal {
         const playerId = document.getElementById("cert-player-select").value;
 
         if (!playerName || !toLevel) {
-            alert("Please enter Player Name and Level Shifted To.");
+            showToast("Please enter Player Name and Level Shifted To.", "error");
             return;
         }
 
@@ -948,7 +948,7 @@ class CoachPortal {
             confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
         }
 
-        alert(`🎉 Certificate successfully generated and recorded for ${playerName}!`);
+        showToast(`🎉 Certificate successfully generated and recorded for ${playerName}!`, "success");
     }
 
     renderCertificateHistory() {
@@ -1063,7 +1063,7 @@ class CoachPortal {
     async handleAddPayment() {
         const role = window.wbFirebaseService.userRole;
         if (role !== "admin" && role !== "coach") {
-            alert("🔒 Access is in 'View Only' mode.");
+            showToast("🔒 Access is in 'View Only' mode.", "error");
             return;
         }
 
@@ -1074,11 +1074,17 @@ class CoachPortal {
         const date = document.getElementById("payment-date").value || this.getTodayDateString();
 
         if (!playerId || !amount) {
-            alert("Please choose a player and enter payment amount.");
+            showToast("Please choose a player and enter payment amount.", "error");
             return;
         }
 
         const player = this.players.find(p => p.id === playerId);
+
+        // Get existing payments for this player to avoid duplicates
+        const existingPayments = this.payments.filter(p => p.playerId === playerId);
+        const totalPaid = existingPayments.reduce((sum, p) => sum + (p.amount || 0), 0) + Number(amount);
+
+        const receiptNo = `WB-REC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const newPay = {
             playerId: playerId,
@@ -1088,15 +1094,16 @@ class CoachPortal {
             plan: plan,
             date: date,
             status: "Paid",
-            receiptNo: `WB-REC-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`
+            receiptNo: receiptNo
         };
 
         await window.wbFirebaseService.savePayment(newPay);
 
-        // Update player status to Paid
+        // Update player fee tracking
         if (player) {
-            player.feeStatus = "Paid";
-            player.feeAmount = Number(amount);
+            player.amountPaid = totalPaid;
+            player.amountPending = Math.max(0, (player.joinedFee || player.feeAmount || 0) - totalPaid);
+            player.feeStatus = player.amountPending === 0 ? "Paid" : "Partial";
             await window.wbFirebaseService.savePlayer(player);
         }
 
@@ -1105,7 +1112,114 @@ class CoachPortal {
         this.renderPlayersTab();
         this.renderDashboardTab();
 
-        alert(`✅ Payment of ₹${amount} recorded successfully for ${player ? player.name : 'Player'}!`);
+        // Generate PDF receipt
+        this.generatePDFReceipt(newPay, player);
+
+        showToast(`✅ Payment of ₹${amount} recorded successfully for ${player ? player.name : 'Player'}!`, "success");
+    }
+
+    generatePDFReceipt(payment, player) {
+        if (typeof jsPDF === "undefined") {
+            console.warn("jsPDF not loaded, skipping PDF generation");
+            return;
+        }
+
+        const doc = new jsPDF();
+
+        // Header - Academy Logo and Name
+        doc.setFillColor(15, 56, 44); // Emerald dark
+        doc.rect(0, 0, 210, 40, 'F');
+
+        doc.setFontSize(24);
+        doc.setTextColor(16, 185, 129); // Emerald light
+        doc.setFont("helvetica", "bold");
+        doc.text("🏸 White Birdie Badminton Academy", 105, 15, { align: "center" });
+
+        doc.setFontSize(10);
+        doc.setTextColor(203, 213, 225); // Slate light
+        doc.text("VPV9+2CR, Kodathi, Kodathi JHC, Karnataka 560035", 105, 23, { align: "center" });
+        doc.text("Phone: 08105806408 | Head Coach: Mr. Krishna", 105, 30, { align: "center" });
+
+        // Receipt Title
+        doc.setFontSize(18);
+        doc.setTextColor(15, 56, 44);
+        doc.setFont("helvetica", "bold");
+        doc.text("FEE PAYMENT RECEIPT", 105, 52, { align: "center" });
+
+        // Receipt Number and Date
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Receipt No: ${payment.receiptNo}`, 20, 65);
+        doc.text(`Date: ${payment.date}`, 150, 65);
+
+        // Student Details Box
+        doc.setDrawColor(16, 185, 129);
+        doc.setLineWidth(0.5);
+        doc.rect(20, 75, 170, 35);
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+        doc.text("Student Information", 25, 83);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`Name: ${player ? player.name : payment.playerName}`, 25, 92);
+        doc.text(`Student ID: ${payment.playerId}`, 25, 99);
+        doc.text(`Batch: ${player ? player.batch : 'N/A'}`, 25, 106);
+
+        // Payment Details Box
+        doc.rect(20, 120, 170, 60);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text("Payment Details", 25, 128);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+
+        const joinedFee = player ? (player.joinedFee || player.feeAmount || 0) : 0;
+        const amountPaid = player ? (player.amountPaid || 0) : Number(payment.amount);
+        const amountPending = Math.max(0, joinedFee - amountPaid);
+
+        doc.text(`Total Joined Fee:`, 25, 138);
+        doc.text(`₹${joinedFee.toLocaleString('en-IN')}`, 160, 138, { align: "right" });
+
+        doc.text(`Amount Paid (This Payment):`, 25, 148);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(16, 185, 129);
+        doc.text(`₹${Number(payment.amount).toLocaleString('en-IN')}`, 160, 148, { align: "right" });
+
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Total Amount Paid:`, 25, 158);
+        doc.text(`₹${amountPaid.toLocaleString('en-IN')}`, 160, 158, { align: "right" });
+
+        doc.text(`Amount Pending:`, 25, 168);
+        doc.setTextColor(amountPending > 0 ? 217, 119, 6 : 16, 185, 129);
+        doc.text(`₹${amountPending.toLocaleString('en-IN')}`, 160, 168, { align: "right" });
+
+        // Payment Mode
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Payment Mode: ${payment.mode}`, 25, 175);
+
+        // Footer
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text("This is a computer-generated receipt. No signature required.", 105, 250, { align: "center" });
+        doc.text("For inquiries, contact Master Admin: siddharthkoppu@gmail.com", 105, 257, { align: "center" });
+
+        doc.setDrawColor(16, 185, 129);
+        doc.line(20, 260, 190, 260);
+
+        doc.setFontSize(8);
+        doc.text("Generated by White Birdie Academy Management Portal", 105, 268, { align: "center" });
+
+        // Save PDF
+        doc.save(`WB-Receipt-${payment.receiptNo}-${player ? player.name.replace(/\s+/g, '_') : 'Student'}.pdf`);
+
+        showToast("📄 PDF receipt generated and downloaded!", "success");
     }
 
     // ================= TAB 6: ACCESS CONTROL & ALLOWED GMAIL LIST =================
@@ -1114,6 +1228,15 @@ class CoachPortal {
         if (!listContainer) return;
 
         const isAdmin = window.wbFirebaseService.userRole === "admin";
+
+        // Clear existing content to prevent duplicates
+        listContainer.innerHTML = "";
+
+        // Helper function to get player name from ID
+        const getPlayerName = (playerId) => {
+            const player = this.players.find(p => p.id === playerId);
+            return player ? player.name : playerId;
+        };
 
         listContainer.innerHTML = this.allowedGmails.map(item => {
             let roleBadge;
@@ -1128,7 +1251,7 @@ class CoachPortal {
             }
 
             const linkedInfo = item.linkedPlayerId
-                ? `<div class="text-[11px] text-blue-400 mt-0.5">🔗 Linked to: ${item.linkedPlayerId}</div>`
+                ? `<div class="text-[11px] text-blue-400 mt-0.5">🔗 Linked to: ${getPlayerName(item.linkedPlayerId)}</div>`
                 : '';
 
             return `
@@ -1159,11 +1282,73 @@ class CoachPortal {
             linkedPlayerSelect.innerHTML = '<option value="">-- Select Player (Child) --</option>' +
                 this.players.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join('');
         }
+
+        // Display current Coach PIN if Master Admin
+        if (isAdmin) {
+            this.renderCoachPINSection();
+        }
+    }
+
+    async renderCoachPINSection() {
+        const pinContainer = document.getElementById("coach-pin-management");
+        if (!pinContainer) return;
+
+        try {
+            const currentPin = await window.wbFirebaseService.getCoachPIN();
+            pinContainer.innerHTML = `
+                <div class="glass-card p-6 rounded-2xl border border-amber-900/40 mt-6">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <span>🔑</span> Coach PIN Management
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="bg-slate-900/60 p-4 rounded-xl">
+                            <div class="text-sm text-slate-300 mb-2">Current Coach PIN:</div>
+                            <div class="text-2xl font-mono font-bold text-emerald-300">${currentPin || 'Not Set'}</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="password"
+                                   id="new-coach-pin-input"
+                                   placeholder="Enter new 4-digit PIN"
+                                   maxlength="4"
+                                   pattern="[0-9]*"
+                                   class="flex-1 px-4 py-2 rounded-xl bg-slate-900/60 border border-emerald-500/30 text-white text-center text-lg font-mono tracking-widest focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition">
+                            <button onclick="window.wbCoachPortal.handleSetCoachPIN()"
+                                    class="px-6 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-sm shadow-lg hover:shadow-emerald-500/30 transition transform hover:scale-[1.02]">
+                                Set PIN
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-400">Coaches can use this PIN for quick sign-in without Google authentication.</p>
+                    </div>
+                </div>
+            `;
+        } catch (e) {
+            console.error("Failed to load Coach PIN:", e);
+        }
+    }
+
+    async handleSetCoachPIN() {
+        const pinInput = document.getElementById("new-coach-pin-input");
+        if (!pinInput) return;
+
+        const newPin = pinInput.value.trim();
+        if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+            showToast("Please enter exactly 4 digits (0-9)", "error");
+            return;
+        }
+
+        try {
+            await window.wbFirebaseService.setCoachPIN(newPin);
+            showToast("✓ Coach PIN updated successfully!", "success");
+            pinInput.value = "";
+            this.renderCoachPINSection();
+        } catch (e) {
+            showToast("Failed to set PIN: " + e.message, "error");
+        }
     }
 
     async handleAddAllowedGmail() {
         if (window.wbFirebaseService.userRole !== "admin") {
-            alert("🔒 Only Master Admin can add Gmail access.");
+            showToast("🔒 Only Master Admin can add Gmail access.", "warning");
             return;
         }
 
@@ -1173,12 +1358,12 @@ class CoachPortal {
         const linkedPlayerId = role === "parent" ? document.getElementById("new-gmail-linked-player").value : null;
 
         if (!email || !email.includes("@")) {
-            alert("Please enter a valid Gmail address.");
+            showToast("Please enter a valid Gmail address.", "error");
             return;
         }
 
         if (role === "parent" && !linkedPlayerId) {
-            alert("Please select a child player to link this parent account to.");
+            showToast("Please select a child player to link this parent account to.", "error");
             return;
         }
 
@@ -1192,12 +1377,12 @@ class CoachPortal {
         document.getElementById("parent-player-link-container").classList.add("hidden");
 
         const roleLabel = role === "admin" ? "Master Admin" : (role === "coach" ? "Coach" : "Parent");
-        alert(`✅ Access granted for ${email} as '${roleLabel}'!`);
+        showToast(`✅ Access granted for ${email} as '${roleLabel}'!`, "success");
     }
 
     async handleRemoveGmail(id) {
         if (window.wbFirebaseService.userRole !== "admin") {
-            alert("🔒 Only Master Admin can remove Gmail access.");
+            showToast("🔒 Only Master Admin can remove Gmail access.", "warning");
             return;
         }
 
@@ -1301,6 +1486,33 @@ class CoachPortal {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Monthly Attendance Calendar -->
+                    <div class="mt-6 bg-slate-900/60 p-5 rounded-2xl border border-slate-800">
+                        <h4 class="text-sm font-bold text-white mb-3 flex items-center justify-between">
+                            <span>📅 Monthly Attendance Calendar</span>
+                            <div class="flex gap-2">
+                                <button onclick="window.wbCoachPortal.changeParentCalendarMonth(-1)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white text-xs">◀</button>
+                                <span class="text-emerald-400 text-xs font-mono" id="parent-calendar-month-label"></span>
+                                <button onclick="window.wbCoachPortal.changeParentCalendarMonth(1)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white text-xs">▶</button>
+                            </div>
+                        </h4>
+                        <div id="parent-attendance-calendar" class="grid grid-cols-7 gap-1 text-center"></div>
+                        <div class="flex flex-wrap gap-4 justify-center mt-4 text-xs">
+                            <div class="flex items-center gap-1">
+                                <div class="w-4 h-4 rounded bg-emerald-500"></div>
+                                <span class="text-slate-400">Present</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <div class="w-4 h-4 rounded bg-rose-500"></div>
+                                <span class="text-slate-400">Absent</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <div class="w-4 h-4 rounded bg-slate-700"></div>
+                                <span class="text-slate-400">No Session</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Fee Status -->
@@ -1365,10 +1577,72 @@ class CoachPortal {
                 </div>
 
             </div>
-        `;
+        // After rendering parent view, initialize the calendar
+        this.parentCalendarDate = new Date();
+        this.renderParentCalendar(child);
     }
 
-    exportBackupJSON() {
+    renderParentCalendar(child) {
+        const calendarContainer = document.getElementById("parent-attendance-calendar");
+        const monthLabel = document.getElementById("parent-calendar-month-label");
+        if (!calendarContainer || !monthLabel) return;
+
+        const year = this.parentCalendarDate.getFullYear();
+        const month = this.parentCalendarDate.getMonth();
+
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        monthLabel.textContent = `${monthNames[month]} ${year}`;
+
+        // Days of week header
+        const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        let html = daysOfWeek.map(d => `<div class="text-xs font-bold text-slate-400 py-1">${d}</div>`).join("");
+
+        // First day of the month and number of days
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // Empty cells before the first day
+        for (let i = 0; i < firstDay; i++) {
+            html += `<div class="p-2"></div>`;
+        }
+
+        // Days of the month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const attRecord = this.attendance[dateStr];
+
+            let status = "none";
+            if (attRecord && attRecord[child.id]) {
+                status = attRecord[child.id];
+            }
+
+            let bgClass = "bg-slate-800 text-slate-400";
+            if (status === "present") {
+                bgClass = "bg-emerald-600 text-white font-bold";
+            } else if (status === "absent") {
+                bgClass = "bg-rose-600 text-white font-bold";
+            }
+
+            html += `
+                <div class="p-2 rounded-lg ${bgClass} text-xs transition hover:scale-105 cursor-pointer" title="${dateStr}: ${status}">
+                    ${day}
+                </div>
+            `;
+        }
+
+        calendarContainer.innerHTML = html;
+    }
+
+    changeParentCalendarMonth(offset) {
+        if (!this.parentCalendarDate) this.parentCalendarDate = new Date();
+        this.parentCalendarDate.setMonth(this.parentCalendarDate.getMonth() + offset);
+
+        const linkedPlayerId = window.wbFirebaseService.linkedPlayerId;
+        const child = this.players.find(p => p.id === linkedPlayerId);
+        if (child) {
+            this.renderParentCalendar(child);
+        }
+    }
         const fullBackup = {
             players: this.players,
             attendance: this.attendance,
@@ -1536,7 +1810,7 @@ class CoachPortal {
     async savePlayerDetails(playerId) {
         const role = window.wbFirebaseService.userRole;
         if (role !== "admin" && role !== "coach") {
-            alert("🔒 Access is in 'View Only' mode.");
+            showToast("🔒 Access is in 'View Only' mode.", "warning");
             return;
         }
 
@@ -1561,7 +1835,7 @@ class CoachPortal {
         this.renderAttendanceTab();
         this.closePlayerModal();
 
-        alert(`✅ Details for ${player.name} updated successfully!`);
+        showToast(`✅ Details for ${player.name} updated successfully!`, "success");
     }
 
     generateCertForPlayer(playerId) {
