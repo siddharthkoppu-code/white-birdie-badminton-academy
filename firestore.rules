@@ -1,0 +1,120 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+
+    // Check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Check if user is Master Admin (Siddharth Koppu)
+    function isMasterAdmin() {
+      return isSignedIn() && request.auth.token.email == 'siddharthkoppu@gmail.com';
+    }
+
+    // Check if user is in allowedGmails collection
+    function isAuthorizedUser() {
+      return isSignedIn() && exists(/databases/$(database)/documents/allowedGmails/$(request.auth.uid));
+    }
+
+    // Get user's role from allowedGmails collection
+    function getUserRole() {
+      return isSignedIn() ? get(/databases/$(database)/documents/allowedGmails/$(request.auth.uid)).data.role : null;
+    }
+
+    // Check if user has coach or admin role
+    function isCoachOrAdmin() {
+      return isMasterAdmin() || (isAuthorizedUser() && getUserRole() in ['coach', 'admin']);
+    }
+
+    // Check if user is a parent
+    function isParent() {
+      return isAuthorizedUser() && getUserRole() == 'parent';
+    }
+
+    // Get parent's linked player ID
+    function getLinkedPlayerId() {
+      return isSignedIn() ? get(/databases/$(database)/documents/allowedGmails/$(request.auth.uid)).data.linkedPlayerId : null;
+    }
+
+    // ========================================
+    // COLLECTION RULES
+    // ========================================
+
+    // allowedGmails - Access Control List (Master Admin ONLY can write)
+    match /allowedGmails/{gmailId} {
+      // Anyone authenticated can read their own entry to check authorization
+      allow read: if isSignedIn() && (
+        isMasterAdmin() ||
+        request.auth.uid == gmailId ||
+        request.auth.token.email == resource.data.email
+      );
+
+      // Only Master Admin can create, update, or delete authorized accounts
+      allow create, update, delete: if isMasterAdmin();
+    }
+
+    // players - Student directory
+    match /players/{playerId} {
+      // Coaches and Admins can read all players
+      // Parents can read ONLY their linked child
+      allow read: if isCoachOrAdmin() ||
+                     (isParent() && playerId == getLinkedPlayerId());
+
+      // Only Coaches and Admins can write (create, update, delete)
+      allow write: if isCoachOrAdmin();
+    }
+
+    // attendance - Daily attendance records (stored as system/attendance document)
+    match /system/attendance {
+      // Coaches and Admins can read all attendance
+      // Parents can read (filtered client-side to their child)
+      allow read: if isCoachOrAdmin() || isParent();
+
+      // Only Coaches and Admins can mark attendance
+      allow write: if isCoachOrAdmin();
+    }
+
+    // payments - Fee payment records
+    match /payments/{paymentId} {
+      // Coaches and Admins can read all payments
+      // Parents can read payments for their linked child only
+      allow read: if isCoachOrAdmin() ||
+                     (isParent() && resource.data.playerId == getLinkedPlayerId());
+
+      // Only Coaches and Admins can log payments
+      allow write: if isCoachOrAdmin();
+    }
+
+    // certificates - Issued certificates
+    match /certificates/{certId} {
+      // Coaches and Admins can read all certificates
+      // Parents can read certificates for their linked child only
+      allow read: if isCoachOrAdmin() ||
+                     (isParent() && resource.data.playerId == getLinkedPlayerId());
+
+      // Only Coaches and Admins can generate certificates
+      allow write: if isCoachOrAdmin();
+    }
+
+    // system - System-wide configuration and metadata
+    match /system/{docId} {
+      // Coaches and Admins can read system docs
+      // Parents can read system docs (for academy info)
+      allow read: if isCoachOrAdmin() || isParent();
+
+      // Only Coaches and Admins can write system docs
+      allow write: if isCoachOrAdmin();
+    }
+
+    // Default deny rule for any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

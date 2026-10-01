@@ -1,36 +1,51 @@
-// firebase-service.js - Local Data Persistence & Role-Based Access Control (RBAC) Layer
+// firebase-service.js - Real Firebase Auth & Cloud Firestore Integration with Strict 3-Tier RBAC
 // Master Admin: siddharthkoppu@gmail.com
 // Roles: 'admin' (Master Admin - Siddharth Koppu), 'coach' (Coach Mr. Krishna & Coaches), 'parent' (Parents - Linked to specific child)
 
 class FirebaseService {
     constructor() {
         this.isInitialized = false;
+        this.auth = null;
+        this.db = null;
         this.currentUser = null;
         this.userRole = null; // 'admin' | 'coach' | 'parent' | null
         this.linkedPlayerId = null; // Set for parent accounts
         this.storageKeyPrefix = "wb_badminton_v2_";
-
-        // Listeners for state changes
         this.authSubscribers = [];
+        this.isVerifyingAuth = false;
     }
 
-    // Initialize local storage and restore session
+    // Initialize Firebase Auth & Firestore
     async init() {
-        this.initLocalStore();
-        this.isInitialized = true;
-
-        // Restore saved session from local storage if available
-        const savedUser = localStorage.getItem(this.storageKeyPrefix + "session_user");
-        if (savedUser) {
+        if (typeof firebase !== "undefined") {
             try {
-                const parsed = JSON.parse(savedUser);
-                await this.handleUserSignIn(parsed);
+                this.auth = firebase.auth();
+                this.db = firebase.firestore();
+                console.log("🔥 Firebase Auth & Firestore Connected Successfully!");
             } catch (e) {
-                console.error("Error restoring session:", e);
+                console.warn("Firebase initialization warning (using offline fallback if needed):", e);
             }
         }
 
-        console.log("🏸 White Birdie Data Layer Initialized (Offline-first LocalStorage)");
+        // Initialize local store fallback if needed
+        this.initLocalStore();
+        this.isInitialized = true;
+
+        // Listen for Real Firebase Auth state changes
+        if (this.auth) {
+            this.auth.onAuthStateChanged(async (firebaseUser) => {
+                if (firebaseUser) {
+                    try {
+                        await this.verifyAndSetUser(firebaseUser);
+                    } catch (err) {
+                        console.error("Auth verification failed:", err);
+                    }
+                } else {
+                    this.handleUserSignOut();
+                }
+            });
+        }
+
         return { success: true };
     }
 
@@ -47,44 +62,83 @@ class FirebaseService {
         });
     }
 
-    // Handle Authentication & Role Resolution
-    async handleUserSignIn(user) {
-        const email = (user.email || "").toLowerCase().trim();
-        const allowedGmails = await this.getAllowedGmails();
+    // Real Google Sign-In via Firebase Auth Popup
+    async signInWithGoogle() {
+        if (!this.auth) {
+            throw new Error("Firebase Auth is not initialized. Please check network connection.");
+        }
 
-        // Check if email is in the allowlist
-        const match = allowedGmails.find(item => item.email.toLowerCase().trim() === email);
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+
+        try {
+            const result = await this.auth.signInWithPopup(provider);
+            const user = result.user;
+
+            // Verify if user is authorized in the system
+            const authResult = await this.verifyAndSetUser(user);
+            return authResult;
+        } catch (error) {
+            console.error("Google Sign-In error:", error);
+            if (error.code === 'auth/popup-closed-by-user') {
+                return null;
+            }
+            throw error;
+        }
+    }
+
+    // Verify user authorization against Master Admin & Firestore allowedGmails
+    async verifyAndSetUser(firebaseUser) {
+        if (!firebaseUser || !firebaseUser.email) {
+            throw new Error("No valid email address found in Google account.");
+        }
+
+        const email = firebaseUser.email.toLowerCase().trim();
+        console.log(`🔍 Verifying authorization for: ${email}`);
 
         let role = null;
         let linkedPlayerId = null;
 
+        // 1. MASTER ADMIN CHECK (Siddharth Koppu)
         if (email === "siddharthkoppu@gmail.com") {
             role = "admin";
-        } else if (match) {
-            role = match.role; // 'admin', 'coach', or 'parent'
-            linkedPlayerId = match.linkedPlayerId || null;
-        } else if (email.includes("krishna") || email.includes("coach")) {
-            role = "coach";
-        } else if (user.isDemoAdmin) {
-            role = "admin";
-        } else if (user.isDemoCoach) {
-            role = "coach";
-        } else if (user.isDemoParent) {
-            role = "parent";
-            linkedPlayerId = user.linkedPlayerId || "wb-p105";
+            console.log("👑 Master Admin Verified: siddharthkoppu@gmail.com");
         } else {
-            // Unregistered email
-            role = null;
+            // 2. CHECK ALLOWED GMAILS FROM FIRESTORE / DATABASE
+            const allowedGmails = await this.getAllowedGmails();
+            const match = allowedGmails.find(item => item.email && item.email.toLowerCase().trim() === email);
+
+            if (match) {
+                role = match.role; // 'admin', 'coach', or 'parent'
+                linkedPlayerId = match.linkedPlayerId || null;
+                console.log(`✅ Authorized User Verified: ${email} (Role: ${role})`);
+            } else {
+                // 3. UNAUTHORIZED USER - STRICT ACCESS DENIAL
+                console.warn(`⛔ Unauthorized access attempt from: ${email}`);
+
+                // Sign them out from Firebase Auth immediately
+                if (this.auth) {
+                    await this.auth.signOut();
+                }
+                this.currentUser = null;
+                this.userRole = null;
+                this.linkedPlayerId = null;
+                this.notifyAuthSubscribers();
+
+                const err = new Error(`ACCESS DENIED: The Google account "${email}" is not authorized to access White Birdie Badminton Academy portal.\n\nPlease contact Master Admin Siddharth Koppu (siddharthkoppu@gmail.com) to request access.`);
+                err.isUnauthorized = true;
+                err.email = email;
+                throw err;
+            }
         }
 
         this.currentUser = {
-            uid: user.uid || "local-" + Date.now(),
-            email: user.email,
-            displayName: user.displayName || user.email.split("@")[0],
-            photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=0F382C&color=10B981`,
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || (role === 'admin' ? "Siddharth Koppu (Master Admin)" : firebaseUser.email.split("@")[0]),
+            photoURL: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(firebaseUser.displayName || firebaseUser.email)}&background=0F382C&color=10B981`,
             role: role,
-            linkedPlayerId: linkedPlayerId,
-            isDemo: !!(user.isDemoAdmin || user.isDemoCoach || user.isDemoParent)
+            linkedPlayerId: linkedPlayerId
         };
 
         this.userRole = role;
@@ -96,13 +150,18 @@ class FirebaseService {
             localStorage.setItem(this.storageKeyPrefix + "session_role", role || "");
             if (linkedPlayerId) {
                 localStorage.setItem(this.storageKeyPrefix + "session_linked_player", linkedPlayerId);
-            } else {
-                localStorage.removeItem(this.storageKeyPrefix + "session_linked_player");
             }
         } catch (e) {}
 
         this.notifyAuthSubscribers();
         return { user: this.currentUser, role: this.userRole, linkedPlayerId: this.linkedPlayerId };
+    }
+
+    async signOut() {
+        if (this.auth) {
+            await this.auth.signOut();
+        }
+        this.handleUserSignOut();
     }
 
     handleUserSignOut() {
@@ -117,68 +176,28 @@ class FirebaseService {
         this.notifyAuthSubscribers();
     }
 
-    // Google Sign-In (Simulated / Prompt)
-    async signInWithGoogle() {
-        const emailInput = prompt(
-            "Enter your authorized Gmail address to sign in:\n\n• Master Admin: siddharthkoppu@gmail.com\n• Coach: krishna.coach@gmail.com\n• Parent: nair.vihaan.parent@gmail.com",
-            "siddharthkoppu@gmail.com"
-        );
-        if (!emailInput) return null;
-
-        const clean = emailInput.trim();
-        const fakeUser = {
-            uid: "google-" + btoa(clean).replace(/=/g, ""),
-            email: clean,
-            displayName: clean === "siddharthkoppu@gmail.com" ? "Siddharth Koppu (Master Admin)" : (clean.includes("krishna") ? "Coach Mr. Krishna" : clean.split("@")[0].toUpperCase()),
-            photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(clean)}&background=0F382C&color=10B981`
-        };
-        return await this.handleUserSignIn(fakeUser);
-    }
-
-    // Demo Sign-In options for instant testing
-    async signInAsDemo(demoType = "admin") {
-        let demoUser;
-
-        if (demoType === "admin") {
-            // Siddharth Koppu (Master Admin)
-            demoUser = {
-                uid: "demo-master-siddharth",
-                email: "siddharthkoppu@gmail.com",
-                displayName: "Siddharth Koppu (Master Admin)",
-                photoURL: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-                isDemoAdmin: true
-            };
-        } else if (demoType === "coach") {
-            // Coach Mr. Krishna
-            demoUser = {
-                uid: "demo-coach-krishna",
-                email: "krishna.coach@gmail.com",
-                displayName: "Coach Mr. Krishna",
-                photoURL: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-                isDemoCoach: true
-            };
-        } else if (demoType === "parent") {
-            // Parent of Vihaan Nair
-            demoUser = {
-                uid: "demo-parent-vihaan",
-                email: "nair.vihaan.parent@gmail.com",
-                displayName: "Pradeep Nair (Vihaan's Parent)",
-                photoURL: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80",
-                isDemoParent: true,
-                linkedPlayerId: "wb-p105"
-            };
-        }
-
-        return await this.handleUserSignIn(demoUser);
-    }
-
-    async signOut() {
-        this.handleUserSignOut();
-    }
-
-    // ================= DATA CRUD METHODS =================
+    // ================= CLOUD FIRESTORE & LOCAL STORAGE DATA CRUD =================
 
     async getData(collection) {
+        // Try Cloud Firestore first
+        if (this.db) {
+            try {
+                const snapshot = await this.db.collection(collection).get();
+                if (!snapshot.empty) {
+                    const data = [];
+                    snapshot.forEach(doc => {
+                        data.push({ id: doc.id, ...doc.data() });
+                    });
+                    // Cache locally
+                    localStorage.setItem(this.storageKeyPrefix + collection, JSON.stringify(data));
+                    return data;
+                }
+            } catch (err) {
+                console.warn(`Firestore read fallback for [${collection}]:`, err.message);
+            }
+        }
+
+        // Fallback to local storage or mock initial data
         try {
             const raw = localStorage.getItem(this.storageKeyPrefix + collection);
             return raw ? JSON.parse(raw) : (window.INITIAL_ACADEMY_DATA[collection] || []);
@@ -188,10 +207,27 @@ class FirebaseService {
     }
 
     async saveData(collection, data) {
+        // Update local cache
         try {
             localStorage.setItem(this.storageKeyPrefix + collection, JSON.stringify(data));
-        } catch (e) {
-            console.error("Local storage save error:", e);
+        } catch (e) {}
+
+        // Sync to Cloud Firestore if connected
+        if (this.db) {
+            try {
+                const batch = this.db.batch();
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        if (item.id) {
+                            const ref = this.db.collection(collection).doc(item.id);
+                            batch.set(ref, item, { merge: true });
+                        }
+                    });
+                    await batch.commit();
+                }
+            } catch (err) {
+                console.warn(`Firestore batch write error for [${collection}]:`, err.message);
+            }
         }
         return data;
     }
@@ -220,11 +256,26 @@ class FirebaseService {
             playerData.feeStatus = playerData.feeStatus || "Pending";
             updated = [playerData, ...players];
         }
+
+        // Firestore direct save
+        if (this.db && playerData.id) {
+            try {
+                await this.db.collection("players").doc(playerData.id).set(playerData, { merge: true });
+            } catch (e) {
+                console.warn("Firestore player save fallback:", e.message);
+            }
+        }
+
         await this.saveData("players", updated);
         return playerData;
     }
 
     async deletePlayer(playerId) {
+        if (this.db) {
+            try {
+                await this.db.collection("players").doc(playerId).delete();
+            } catch (e) {}
+        }
         const players = await this.getPlayers();
         const updated = players.filter(p => p.id !== playerId);
         await this.saveData("players", updated);
@@ -233,6 +284,17 @@ class FirebaseService {
 
     // Attendance
     async getAttendance() {
+        if (this.db) {
+            try {
+                const doc = await this.db.collection("system").doc("attendance").get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    localStorage.setItem(this.storageKeyPrefix + "attendance", JSON.stringify(data));
+                    return data;
+                }
+            } catch (e) {}
+        }
+
         try {
             const raw = localStorage.getItem(this.storageKeyPrefix + "attendance");
             return raw ? JSON.parse(raw) : (window.INITIAL_ACADEMY_DATA.attendance || {});
@@ -246,6 +308,16 @@ class FirebaseService {
         const previousRecordsForDate = allAttendance[dateStr] || {};
 
         allAttendance[dateStr] = { ...previousRecordsForDate, ...records };
+
+        // Save to Firestore
+        if (this.db) {
+            try {
+                await this.db.collection("system").doc("attendance").set(allAttendance, { merge: true });
+            } catch (e) {
+                console.warn("Firestore attendance save fallback:", e.message);
+            }
+        }
+
         try {
             localStorage.setItem(this.storageKeyPrefix + "attendance", JSON.stringify(allAttendance));
         } catch (e) {}
@@ -290,6 +362,13 @@ class FirebaseService {
             payment.id = "pay-" + Date.now();
             payment.receiptNo = `WB-REC-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
         }
+
+        if (this.db) {
+            try {
+                await this.db.collection("payments").doc(payment.id).set(payment, { merge: true });
+            } catch (e) {}
+        }
+
         const updated = [payment, ...payments.filter(p => p.id !== payment.id)];
         await this.saveData("payments", updated);
         return payment;
@@ -307,6 +386,13 @@ class FirebaseService {
             cert.certificateNo = `WBA-CERT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
             cert.issuedAt = new Date().toISOString();
         }
+
+        if (this.db) {
+            try {
+                await this.db.collection("certificates").doc(cert.id).set(cert, { merge: true });
+            } catch (e) {}
+        }
+
         const updated = [cert, ...certs.filter(c => c.id !== cert.id)];
         await this.saveData("certificates", updated);
         return cert;
@@ -339,6 +425,14 @@ class FirebaseService {
             addedAt: new Date().toISOString()
         };
 
+        if (this.db) {
+            try {
+                await this.db.collection("allowedGmails").doc(newEntry.id).set(newEntry);
+            } catch (e) {
+                console.warn("Firestore allowedGmails save fallback:", e.message);
+            }
+        }
+
         const updated = [...filtered, newEntry];
         await this.saveData("allowedGmails", updated);
         return newEntry;
@@ -357,6 +451,12 @@ class FirebaseService {
             throw new Error("Master Admin account cannot be removed.");
         }
 
+        if (this.db) {
+            try {
+                await this.db.collection("allowedGmails").doc(id).delete();
+            } catch (e) {}
+        }
+
         const updated = list.filter(item => item.id !== id);
         await this.saveData("allowedGmails", updated);
         return updated;
@@ -365,7 +465,9 @@ class FirebaseService {
     // Subscribers for auth updates
     onAuthStateChange(callback) {
         this.authSubscribers.push(callback);
-        callback({ user: this.currentUser, role: this.userRole, linkedPlayerId: this.linkedPlayerId });
+        if (this.currentUser) {
+            callback({ user: this.currentUser, role: this.userRole, linkedPlayerId: this.linkedPlayerId });
+        }
         return () => {
             this.authSubscribers = this.authSubscribers.filter(cb => cb !== callback);
         };

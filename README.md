@@ -57,13 +57,32 @@ python -m http.server 8000
 ```
 Then open `http://localhost:8000`.
 
-### Option 3: Instant Demo Logins
+### Option 3: Secure Google Login
 1. Open the website.
 2. Press `Ctrl + Shift + K` or complete the 4-step secret click sequence.
-3. Click any of the 3 role buttons:
-   - 👑 **Demo Master Admin (Siddharth Koppu)** → Test full academy control & access management
-   - 🏸 **Demo Coach (Mr. Krishna)** → Test player management, attendance, certificates, and fees
-   - 👨‍👧 **Demo Parent (Vihaan's Parent)** → Test isolated child progress view
+3. Click **"Sign in with Google"** and choose your authorized Google account:
+   - **`siddharthkoppu@gmail.com`** → Master Admin (Full Control)
+   - **Authorized Coach Gmail** → Coaching Access (Players, Attendance, Certs, Fees)
+   - **Authorized Parent Gmail** → Child Progress View (Linked to specific student)
+   - **Any Unauthorized Gmail** → ⛔ Access Denied error popup!
+
+---
+
+## 🛡️ Cloud Firestore Security Rules Setup
+
+To secure your Cloud Firestore database with the rules created in `firestore.rules`:
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Open your project **"white-birdie"**
+3. Navigate to **Firestore Database** → **Rules** tab
+4. Replace existing rules with the contents of **`firestore.rules`**
+5. Click **"Publish"**
+
+### Adding Authorized Domains in Firebase:
+1. In Firebase Console, go to **Authentication** → **Settings** tab → **Authorized domains**
+2. Ensure both of these are added:
+   - `localhost` (for local development)
+   - `siddharthkoppu-code.github.io` (for live GitHub Pages)
 
 ---
 
@@ -84,7 +103,8 @@ white-birdie-badminton-academy/
 ├── styles.css           # Emerald/gold glassmorphism, animations, print stylesheet
 ├── app.js               # Public interactions, secret sequence, registration modal
 ├── coach-portal.js      # Coach portal logic (dashboard, attendance, certs, parent view)
-├── firebase-service.js  # 3-tier RBAC + session management + localStorage persistence
+├── firebase-service.js  # Real Firebase Auth + Firestore + 3-tier RBAC
+├── firestore.rules      # Production Firestore Security Rules
 ├── mock-data.js         # Seed database (players, attendance, payments, access list)
 ├── push-to-github.bat   # One-click manual deploy script to GitHub
 ├── run-server.bat       # Local development server script

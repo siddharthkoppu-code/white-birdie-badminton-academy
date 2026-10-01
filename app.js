@@ -152,6 +152,42 @@ function showSecretNotification(message) {
 }
 
 // ================= MODALS & COACH PORTAL SWITCHING =================
+function showUnauthorizedModal(email) {
+    const existingModal = document.getElementById("unauthorized-error-modal");
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "unauthorized-error-modal";
+    modal.className = "fixed inset-0 z-50 overflow-y-auto bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4";
+    modal.innerHTML = `
+        <div class="glass-card rounded-3xl max-w-md w-full border-2 border-rose-500/60 shadow-2xl relative overflow-hidden p-6 md:p-8 space-y-6">
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500 to-red-700 flex items-center justify-center text-3xl shadow-lg shadow-rose-500/30 mx-auto mb-3">
+                    🔒
+                </div>
+                <h3 class="font-heading font-black text-2xl text-white">Access Denied</h3>
+                <p class="text-xs text-rose-400 mt-1">Unauthorized Gmail Account</p>
+            </div>
+
+            <div class="px-4 py-4 rounded-xl bg-rose-950/40 border border-rose-500/30 space-y-3">
+                <p class="text-sm text-rose-200 leading-relaxed">
+                    The Google account <span class="font-bold font-mono text-rose-100">${email}</span> is not authorized to access White Birdie Badminton Academy portal.
+                </p>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Please contact <span class="font-bold text-amber-300">Master Admin Siddharth Koppu</span> at <span class="font-mono text-emerald-300">siddharthkoppu@gmail.com</span> to request access.
+                </p>
+            </div>
+
+            <div class="pt-2 text-center">
+                <button onclick="document.getElementById('unauthorized-error-modal').remove()" class="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition">
+                    Close and Return
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
 function openCoachLoginModal() {
     const modal = document.getElementById("coach-login-modal");
     if (modal) modal.classList.remove("hidden");
@@ -193,7 +229,7 @@ function setupModals() {
     const btnCloseLogin = document.getElementById("btn-close-coach-login");
     if (btnCloseLogin) btnCloseLogin.addEventListener("click", closeCoachLoginModal);
 
-    // Google Sign-In button
+    // Google Sign-In button - Real Firebase Authentication
     const btnGoogleAuth = document.getElementById("btn-google-signin");
     if (btnGoogleAuth) {
         btnGoogleAuth.addEventListener("click", async () => {
@@ -204,38 +240,13 @@ function setupModals() {
                     openCoachPortal();
                 }
             } catch (e) {
-                alert("Google Sign-In note: " + e.message);
+                if (e.isUnauthorized) {
+                    // Show styled error modal for unauthorized users
+                    showUnauthorizedModal(e.email);
+                } else {
+                    alert("⚠️ Sign-In Error:\n\n" + e.message);
+                }
             }
-        });
-    }
-
-    // Demo Master Admin (Siddharth Koppu)
-    const btnDemoMaster = document.getElementById("btn-demo-admin");
-    if (btnDemoMaster) {
-        btnDemoMaster.addEventListener("click", async () => {
-            await window.wbFirebaseService.signInAsDemo("admin");
-            closeCoachLoginModal();
-            openCoachPortal();
-        });
-    }
-
-    // Demo Coach (Mr. Krishna)
-    const btnDemoCoach = document.getElementById("btn-demo-coach");
-    if (btnDemoCoach) {
-        btnDemoCoach.addEventListener("click", async () => {
-            await window.wbFirebaseService.signInAsDemo("coach");
-            closeCoachLoginModal();
-            openCoachPortal();
-        });
-    }
-
-    // Demo Parent (Pradeep Nair / Vihaan)
-    const btnDemoParent = document.getElementById("btn-demo-parent");
-    if (btnDemoParent) {
-        btnDemoParent.addEventListener("click", async () => {
-            await window.wbFirebaseService.signInAsDemo("parent");
-            closeCoachLoginModal();
-            openCoachPortal();
         });
     }
 
