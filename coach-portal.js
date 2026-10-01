@@ -214,19 +214,19 @@ class CoachPortal {
             });
         }
 
-        // Firebase Config Form
-        const fbConfigForm = document.getElementById("firebase-config-form");
-        if (fbConfigForm) {
-            fbConfigForm.addEventListener("submit", (e) => {
-                e.preventDefault();
-                this.handleSaveFirebaseConfig();
+        // Role dropdown change handler (show linkedPlayer selector for parent role)
+        const roleSelect = document.getElementById("new-gmail-role");
+        if (roleSelect) {
+            roleSelect.addEventListener("change", (e) => {
+                const container = document.getElementById("parent-player-link-container");
+                if (container) {
+                    if (e.target.value === "parent") {
+                        container.classList.remove("hidden");
+                    } else {
+                        container.classList.add("hidden");
+                    }
+                }
             });
-        }
-
-        // Export / Import Backup Data
-        const btnExportData = document.getElementById("btn-export-backup");
-        if (btnExportData) {
-            btnExportData.addEventListener("click", () => this.exportBackupJSON());
         }
     }
 
@@ -260,62 +260,123 @@ class CoachPortal {
         if (tabId === "certificates") this.renderCertificatesTab();
         if (tabId === "payments") this.renderPaymentsTab();
         if (tabId === "access") this.renderAccessTab();
-        if (tabId === "settings") this.renderSettingsTab();
+        if (tabId === "parent-view") this.renderParentView();
     }
 
     renderAll() {
+        const role = window.wbFirebaseService.userRole;
+
         this.renderUserBadge();
-        this.renderDashboardTab();
-        this.renderPlayersTab();
-        this.renderAttendanceTab();
-        this.renderCertificatesTab();
-        this.renderPaymentsTab();
-        this.renderAccessTab();
-        this.renderSettingsTab();
-        this.populatePlayerDropdowns();
+        this.applyTabVisibilityByRole(role);
+
+        // Render content based on role
+        if (role === "parent") {
+            this.renderParentView();
+            this.switchTab("parent-view");
+        } else {
+            this.renderDashboardTab();
+            this.renderPlayersTab();
+            this.renderAttendanceTab();
+            this.renderCertificatesTab();
+            this.renderPaymentsTab();
+            if (role === "admin") {
+                this.renderAccessTab();
+            }
+            this.populatePlayerDropdowns();
+        }
     }
 
     renderUserBadge() {
         const user = window.wbFirebaseService.currentUser;
-        const role = window.wbFirebaseService.userRole; // 'edit' or 'view'
+        const role = window.wbFirebaseService.userRole; // 'admin', 'coach', or 'parent'
         const badgeContainer = document.getElementById("portal-user-badge");
 
         if (!badgeContainer) return;
 
-        const isReadOnly = role === "view";
-        const roleText = isReadOnly ? "👁️ View Only Mode" : "⚡ Full Coach Access (View & Edit)";
-        const roleColor = isReadOnly ? "bg-amber-500/20 text-amber-300 border-amber-500/40" : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40";
+        let roleText, roleColor;
+        if (role === "admin") {
+            roleText = "👑 Master Admin";
+            roleColor = "bg-gradient-to-r from-amber-500/30 to-emerald-500/30 text-amber-200 border-amber-400/60";
+        } else if (role === "coach") {
+            roleText = "🏸 Head Coach";
+            roleColor = "bg-emerald-500/20 text-emerald-300 border-emerald-500/40";
+        } else if (role === "parent") {
+            roleText = "👨‍👧 Parent View";
+            roleColor = "bg-blue-500/20 text-blue-300 border-blue-500/40";
+        } else {
+            roleText = "👁️ View Only";
+            roleColor = "bg-slate-500/20 text-slate-300 border-slate-500/40";
+        }
 
         badgeContainer.innerHTML = `
             <div class="flex items-center gap-3">
-                <img src="${user ? user.photoURL : 'https://ui-avatars.com/api/?name=Coach+Krishna'}"
+                <img src="${user ? user.photoURL : 'https://ui-avatars.com/api/?name=User'}"
                      class="w-10 h-10 rounded-full border-2 border-emerald-400 object-cover shadow-md" alt="Avatar">
                 <div class="text-left leading-tight">
                     <div class="font-bold text-white flex items-center gap-2">
-                        ${user ? user.displayName : 'Coach Mr. Krishna'}
+                        ${user ? user.displayName : 'User'}
                         <span class="text-xs px-2 py-0.5 rounded-full border ${roleColor} font-semibold">
                             ${roleText}
                         </span>
                     </div>
-                    <div class="text-xs text-slate-400 font-mono">${user ? user.email : 'krishna.coach@gmail.com'}</div>
+                    <div class="text-xs text-slate-400 font-mono">${user ? user.email : ''}</div>
                 </div>
             </div>
         `;
 
-        // Apply read-only locks across UI if user has 'view' only
-        this.applyRoleRestrictions(isReadOnly);
+        // Apply role-based restrictions
+        this.applyRoleRestrictions(role);
     }
 
-    applyRoleRestrictions(isReadOnly) {
+    applyRoleRestrictions(role) {
+        const canEdit = (role === "admin" || role === "coach");
         document.querySelectorAll(".require-edit-role").forEach(el => {
-            if (isReadOnly) {
+            if (!canEdit) {
                 el.disabled = true;
                 el.classList.add("opacity-50", "cursor-not-allowed");
-                el.setAttribute("title", "Requires 'View & Edit' Coach Permission");
+                el.setAttribute("title", "Requires Coach or Admin Permission");
             } else {
                 el.disabled = false;
                 el.classList.remove("opacity-50", "cursor-not-allowed");
                 el.removeAttribute("title");
+            }
+        });
+    }
+
+    applyTabVisibilityByRole(role) {
+        const allTabs = document.querySelectorAll(".portal-tab-btn");
+
+        allTabs.forEach(btn => {
+            const tab = btn.dataset.tab;
+
+            if (role === "parent") {
+                // Parents only see Child Progress tab
+                if (tab === "parent-view") {
+                    btn.classList.remove("hidden");
+                } else {
+                    btn.classList.add("hidden");
+                }
+            } else if (role === "coach") {
+                // Coaches see all except access control and parent view
+                if (tab === "access" || tab === "parent-view") {
+                    btn.classList.add("hidden");
+                } else {
+                    btn.classList.remove("hidden");
+                }
+            } else if (role === "admin") {
+                // Admins see everything except parent view
+                if (tab === "parent-view") {
+                    btn.classList.add("hidden");
+                } else {
+                    btn.classList.remove("hidden");
+                }
+            } else {
+                // Fallback: hide sensitive tabs
+                if (tab === "access" || tab === "parent-view") {
+                    btn.classList.add("hidden");
+                } else {
+                    btn.classList.remove("hidden");
+                }
             }
         });
     }
@@ -538,7 +599,8 @@ class CoachPortal {
         if (!container) return;
 
         const dateLog = this.attendance[this.selectedAttendanceDate] || {};
-        const isReadOnly = window.wbFirebaseService.userRole === "view";
+        const role = window.wbFirebaseService.userRole;
+        const isReadOnly = (role !== "admin" && role !== "coach");
 
         // Filter players for attendance if batch filter is applied
         let list = this.players;
@@ -665,7 +727,8 @@ class CoachPortal {
     }
 
     async setAttendanceStatus(playerId, status) {
-        if (window.wbFirebaseService.userRole === "view") {
+        const role = window.wbFirebaseService.userRole;
+        if (role !== "admin" && role !== "coach") {
             alert("🔒 Access is in 'View Only' mode. Contact Master Coach for edit permissions.");
             return;
         }
@@ -683,7 +746,8 @@ class CoachPortal {
     }
 
     async markAllAttendance(status) {
-        if (window.wbFirebaseService.userRole === "view") {
+        const role = window.wbFirebaseService.userRole;
+        if (role !== "admin" && role !== "coach") {
             alert("🔒 Access is in 'View Only' mode.");
             return;
         }
@@ -833,7 +897,8 @@ class CoachPortal {
     }
 
     async handleGenerateCertificate() {
-        if (window.wbFirebaseService.userRole === "view") {
+        const role = window.wbFirebaseService.userRole;
+        if (role !== "admin" && role !== "coach") {
             alert("🔒 Access is in 'View Only' mode.");
             return;
         }
@@ -996,7 +1061,8 @@ class CoachPortal {
     }
 
     async handleAddPayment() {
-        if (window.wbFirebaseService.userRole === "view") {
+        const role = window.wbFirebaseService.userRole;
+        if (role !== "admin" && role !== "coach") {
             alert("🔒 Access is in 'View Only' mode.");
             return;
         }
@@ -1047,19 +1113,30 @@ class CoachPortal {
         const listContainer = document.getElementById("allowed-gmail-list-body");
         if (!listContainer) return;
 
-        const isReadOnly = window.wbFirebaseService.userRole === "view";
+        const isAdmin = window.wbFirebaseService.userRole === "admin";
 
         listContainer.innerHTML = this.allowedGmails.map(item => {
-            const isEdit = item.role === "edit";
-            const roleBadge = isEdit
-                ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">⚡ View & Edit (Coach/Admin)</span>`
-                : `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">👁️ Only View (Guest/Observer)</span>`;
+            let roleBadge;
+            if (item.role === "admin") {
+                roleBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-amber-500/30 to-emerald-500/30 text-amber-200 border border-amber-400/60">👑 Master Admin</span>`;
+            } else if (item.role === "coach") {
+                roleBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">🏸 Coach</span>`;
+            } else if (item.role === "parent") {
+                roleBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/40">👨‍👧 Parent</span>`;
+            } else {
+                roleBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-500/20 text-slate-300 border border-slate-500/40">👁️ View Only</span>`;
+            }
+
+            const linkedInfo = item.linkedPlayerId
+                ? `<div class="text-[11px] text-blue-400 mt-0.5">🔗 Linked to: ${item.linkedPlayerId}</div>`
+                : '';
 
             return `
                 <tr class="border-b border-emerald-950/40 hover:bg-emerald-950/20 text-sm">
                     <td class="py-3 px-4">
                         <div class="font-bold text-white">${item.name || item.email.split('@')[0]}</div>
                         <div class="text-xs text-emerald-400 font-mono">${item.email}</div>
+                        ${linkedInfo}
                     </td>
                     <td class="py-3 px-4">${roleBadge}</td>
                     <td class="py-3 px-4 text-xs text-slate-400">
@@ -1067,44 +1144,60 @@ class CoachPortal {
                     </td>
                     <td class="py-3 px-4 text-right">
                         <button onclick="window.wbCoachPortal.handleRemoveGmail('${item.id}')"
-                                ${isReadOnly ? 'disabled' : ''}
-                                class="text-xs px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/40 transition">
+                                ${!isAdmin ? 'disabled' : ''}
+                                class="text-xs px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/40 transition ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}">
                             Remove
                         </button>
                     </td>
                 </tr>
             `;
         }).join("");
+
+        // Populate linked player dropdown in add form
+        const linkedPlayerSelect = document.getElementById("new-gmail-linked-player");
+        if (linkedPlayerSelect) {
+            linkedPlayerSelect.innerHTML = '<option value="">-- Select Player (Child) --</option>' +
+                this.players.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join('');
+        }
     }
 
     async handleAddAllowedGmail() {
-        if (window.wbFirebaseService.userRole === "view") {
-            alert("🔒 Access is in 'View Only' mode.");
+        if (window.wbFirebaseService.userRole !== "admin") {
+            alert("🔒 Only Master Admin can add Gmail access.");
             return;
         }
 
         const email = document.getElementById("new-gmail-email").value.trim();
         const role = document.getElementById("new-gmail-role").value;
         const name = document.getElementById("new-gmail-name").value.trim();
+        const linkedPlayerId = role === "parent" ? document.getElementById("new-gmail-linked-player").value : null;
 
         if (!email || !email.includes("@")) {
             alert("Please enter a valid Gmail address.");
             return;
         }
 
-        await window.wbFirebaseService.addAllowedGmail(email, role, name);
+        if (role === "parent" && !linkedPlayerId) {
+            alert("Please select a child player to link this parent account to.");
+            return;
+        }
+
+        await window.wbFirebaseService.addAllowedGmail(email, role, name, linkedPlayerId);
         this.allowedGmails = await window.wbFirebaseService.getAllowedGmails();
         this.renderAccessTab();
 
         document.getElementById("new-gmail-email").value = "";
         document.getElementById("new-gmail-name").value = "";
+        document.getElementById("new-gmail-linked-player").value = "";
+        document.getElementById("parent-player-link-container").classList.add("hidden");
 
-        alert(`✅ Access granted for ${email} as '${role === "edit" ? "View and Edit" : "Only View"}'!`);
+        const roleLabel = role === "admin" ? "Master Admin" : (role === "coach" ? "Coach" : "Parent");
+        alert(`✅ Access granted for ${email} as '${roleLabel}'!`);
     }
 
     async handleRemoveGmail(id) {
-        if (window.wbFirebaseService.userRole === "view") {
-            alert("🔒 Access is in 'View Only' mode.");
+        if (window.wbFirebaseService.userRole !== "admin") {
+            alert("🔒 Only Master Admin can remove Gmail access.");
             return;
         }
 
@@ -1115,46 +1208,164 @@ class CoachPortal {
         }
     }
 
-    // ================= TAB 7: SETTINGS & FIREBASE =================
-    renderSettingsTab() {
-        const config = window.wbFirebaseService.config || {};
-        document.getElementById("fb-apiKey").value = config.apiKey || "";
-        document.getElementById("fb-authDomain").value = config.authDomain || "";
-        document.getElementById("fb-projectId").value = config.projectId || "";
-        document.getElementById("fb-storageBucket").value = config.storageBucket || "";
-        document.getElementById("fb-messagingSenderId").value = config.messagingSenderId || "";
-        document.getElementById("fb-appId").value = config.appId || "";
+    // ================= TAB 7: PARENT VIEW (CHILD PROGRESS) =================
+    renderParentView() {
+        const container = document.getElementById("parent-view-container");
+        if (!container) return;
 
-        const statusPill = document.getElementById("firebase-connection-status");
-        if (statusPill) {
-            if (window.wbFirebaseService.isLiveMode) {
-                statusPill.innerHTML = `
-                    <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span class="text-emerald-300 font-bold">Connected to Live Firebase (Firestore + Google Auth)</span>
-                `;
-            } else {
-                statusPill.innerHTML = `
-                    <span class="w-3 h-3 rounded-full bg-amber-400"></span>
-                    <span class="text-amber-300 font-bold">Offline LocalStorage Mode (Ready for Firebase keys)</span>
-                `;
-            }
+        const linkedPlayerId = window.wbFirebaseService.linkedPlayerId;
+        if (!linkedPlayerId) {
+            container.innerHTML = `
+                <div class="glass-card p-8 rounded-3xl border border-rose-500/40 text-center">
+                    <div class="text-4xl mb-3">⚠️</div>
+                    <h3 class="text-xl font-bold text-white mb-2">No Child Linked</h3>
+                    <p class="text-sm text-slate-400">Your parent account is not linked to any player. Please contact the academy admin.</p>
+                </div>
+            `;
+            return;
         }
-    }
 
-    async handleSaveFirebaseConfig() {
-        const newConfig = {
-            apiKey: document.getElementById("fb-apiKey").value.trim(),
-            authDomain: document.getElementById("fb-authDomain").value.trim(),
-            projectId: document.getElementById("fb-projectId").value.trim(),
-            storageBucket: document.getElementById("fb-storageBucket").value.trim(),
-            messagingSenderId: document.getElementById("fb-messagingSenderId").value.trim(),
-            appId: document.getElementById("fb-appId").value.trim()
-        };
+        const child = this.players.find(p => p.id === linkedPlayerId);
+        if (!child) {
+            container.innerHTML = `
+                <div class="glass-card p-8 rounded-3xl border border-rose-500/40 text-center">
+                    <div class="text-4xl mb-3">❌</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Player Not Found</h3>
+                    <p class="text-sm text-slate-400">The linked player (${linkedPlayerId}) was not found in the academy roster.</p>
+                </div>
+            `;
+            return;
+        }
 
-        window.wbFirebaseService.saveConfig(newConfig);
-        alert("Firebase credentials saved! Reloading Firebase instance...");
-        await window.wbFirebaseService.init();
-        this.renderSettingsTab();
+        // Calculate attendance stats
+        const attPercent = child.totalDays > 0 ? Math.round((child.daysPresent / child.totalDays) * 100) : 0;
+
+        // Get child's certificates
+        const childCerts = this.certificates.filter(c => c.playerId === child.id);
+
+        // Get child's payments
+        const childPayments = this.payments.filter(p => p.playerId === child.id);
+        const totalPaid = childPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+        container.innerHTML = `
+            <!-- Child Profile Card -->
+            <div class="glass-card p-6 md:p-8 rounded-3xl border border-emerald-900/40 space-y-6">
+
+                <!-- Header with Photo -->
+                <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 bg-emerald-950/50 p-6 rounded-2xl border border-emerald-900/50">
+                    <div class="relative">
+                        <img src="${child.photoUrl}" class="w-28 h-28 rounded-3xl object-cover border-4 border-emerald-400 shadow-xl" alt="${child.name}">
+                        <span class="absolute -bottom-2 -right-2 px-3 py-1 rounded-full text-xs font-bold uppercase bg-emerald-500 text-white shadow-lg">
+                            ${child.status || 'Active'}
+                        </span>
+                    </div>
+                    <div class="flex-1 text-center sm:text-left">
+                        <h2 class="text-3xl font-black text-white font-heading mb-2">${child.name}</h2>
+                        <div class="flex flex-wrap gap-2 justify-center sm:justify-start mb-3">
+                            <span class="text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/40">
+                                ${child.skillLevel}
+                            </span>
+                            <span class="text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 font-semibold border border-blue-500/40">
+                                Age: ${child.age}
+                            </span>
+                        </div>
+                        <div class="text-sm text-slate-300 space-y-1">
+                            <div>🏸 <strong>Batch:</strong> ${child.batch}</div>
+                            <div>📅 <strong>Enrolled:</strong> ${child.startDate || 'N/A'}</div>
+                            <div>📞 <strong>Contact:</strong> ${child.phone}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendance Stats -->
+                <div>
+                    <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                        <span>📊</span> Attendance Record
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 text-center">
+                            <div class="text-xs text-slate-400 uppercase font-bold mb-1">Total Days</div>
+                            <div class="text-3xl font-bold font-mono text-white">${child.totalDays || 0}</div>
+                            <div class="text-[11px] text-slate-500 mt-1">Sessions conducted</div>
+                        </div>
+                        <div class="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 text-center">
+                            <div class="text-xs text-slate-400 uppercase font-bold mb-1">Days Present</div>
+                            <div class="text-3xl font-bold font-mono text-emerald-400">${child.daysPresent || 0}</div>
+                            <div class="text-[11px] text-slate-500 mt-1">Classes attended</div>
+                        </div>
+                        <div class="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 text-center">
+                            <div class="text-xs text-slate-400 uppercase font-bold mb-1">Attendance Rate</div>
+                            <div class="text-3xl font-bold font-mono text-teal-300">${attPercent}%</div>
+                            <div class="w-full bg-slate-800 rounded-full h-2 mt-2">
+                                <div class="bg-gradient-to-r from-emerald-400 to-teal-400 h-2 rounded-full transition-all duration-500" style="width: ${attPercent}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fee Status -->
+                <div>
+                    <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                        <span>💳</span> Fee Status
+                    </h3>
+                    <div class="bg-slate-900/60 p-5 rounded-2xl border border-slate-800">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-slate-300">Current Status:</span>
+                            <span class="px-3 py-1 rounded-full text-xs font-bold ${child.feeStatus === 'Paid' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'}">
+                                ${child.feeStatus || 'Pending'}
+                            </span>
+                        </div>
+                        <div class="text-xs text-slate-400">
+                            <div>📦 Plan: ${child.durationMonths || 'N/A'} Month(s)</div>
+                            <div class="mt-1">💰 Total Paid: <strong class="text-emerald-400">₹${totalPaid.toLocaleString()}</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Level Certificates -->
+                <div>
+                    <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                        <span>🏆</span> Level Certificates (${childCerts.length})
+                    </h3>
+                    ${childCerts.length > 0 ? `
+                        <div class="space-y-2">
+                            ${childCerts.map(cert => `
+                                <div class="bg-gradient-to-r from-amber-950/60 to-emerald-950/60 p-4 rounded-xl border border-amber-500/30 flex items-center justify-between">
+                                    <div>
+                                        <div class="text-sm font-bold text-white">${cert.fromLevel} → ${cert.toLevel}</div>
+                                        <div class="text-xs text-slate-400 mt-0.5">Awarded: ${cert.awardDate || 'N/A'}</div>
+                                    </div>
+                                    <div class="text-2xl">🎖️</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 text-center text-sm text-slate-400">
+                            No certificates awarded yet. Keep training!
+                        </div>
+                    `}
+                </div>
+
+                <!-- Coach Remarks -->
+                <div>
+                    <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                        <span>💬</span> Coach Remarks
+                    </h3>
+                    <div class="bg-emerald-950/40 p-5 rounded-2xl border border-emerald-900/50">
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-lg flex-shrink-0">🏸</div>
+                            <div class="flex-1">
+                                <div class="text-sm font-bold text-emerald-300 mb-1">Coach Mr. Krishna</div>
+                                <div class="text-sm text-slate-300 leading-relaxed">
+                                    ${child.coachNotes || child.medicalNotes || "Great progress! Keep up the excellent work and dedication to badminton training."}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        `;
     }
 
     exportBackupJSON() {
@@ -1181,7 +1392,8 @@ class CoachPortal {
         if (!player) return;
         this.selectedPlayer = player;
 
-        const isReadOnly = window.wbFirebaseService.userRole === "view";
+        const role = window.wbFirebaseService.userRole;
+        const isReadOnly = (role !== "admin" && role !== "coach");
         const attPercent = player.totalDays > 0 ? Math.round((player.daysPresent / player.totalDays) * 100) : 0;
 
         const modal = document.getElementById("player-detail-modal");
@@ -1322,7 +1534,8 @@ class CoachPortal {
     }
 
     async savePlayerDetails(playerId) {
-        if (window.wbFirebaseService.userRole === "view") {
+        const role = window.wbFirebaseService.userRole;
+        if (role !== "admin" && role !== "coach") {
             alert("🔒 Access is in 'View Only' mode.");
             return;
         }

@@ -209,21 +209,31 @@ function setupModals() {
         });
     }
 
-    // Demo Coach (View & Edit)
-    const btnDemoAdmin = document.getElementById("btn-demo-coach-admin");
-    if (btnDemoAdmin) {
-        btnDemoAdmin.addEventListener("click", async () => {
-            await window.wbFirebaseService.signInAsDemo("edit");
+    // Demo Master Admin (Siddharth Koppu)
+    const btnDemoMaster = document.getElementById("btn-demo-admin");
+    if (btnDemoMaster) {
+        btnDemoMaster.addEventListener("click", async () => {
+            await window.wbFirebaseService.signInAsDemo("admin");
             closeCoachLoginModal();
             openCoachPortal();
         });
     }
 
-    // Demo Viewer (Only View)
-    const btnDemoViewer = document.getElementById("btn-demo-coach-viewer");
-    if (btnDemoViewer) {
-        btnDemoViewer.addEventListener("click", async () => {
-            await window.wbFirebaseService.signInAsDemo("view");
+    // Demo Coach (Mr. Krishna)
+    const btnDemoCoach = document.getElementById("btn-demo-coach");
+    if (btnDemoCoach) {
+        btnDemoCoach.addEventListener("click", async () => {
+            await window.wbFirebaseService.signInAsDemo("coach");
+            closeCoachLoginModal();
+            openCoachPortal();
+        });
+    }
+
+    // Demo Parent (Pradeep Nair / Vihaan)
+    const btnDemoParent = document.getElementById("btn-demo-parent");
+    if (btnDemoParent) {
+        btnDemoParent.addEventListener("click", async () => {
+            await window.wbFirebaseService.signInAsDemo("parent");
             closeCoachLoginModal();
             openCoachPortal();
         });

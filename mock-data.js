@@ -9,43 +9,40 @@ const INITIAL_ACADEMY_DATA = {
         locationPlusCode: "VPV9+2CR, Kodathi, Kodathi JHC, Karnataka 560035",
         mapsUrl: "https://www.google.com/maps/search/?api=1&query=VPV9%2B2CR%2C+Kodathi%2C+Kodathi+JHC%2C+Karnataka+560035",
         headCoach: "Mr. Krishna",
+        masterAdmin: "siddharthkoppu@gmail.com",
         openingHours: "Mon - Sun: 5:00 AM - 11:00 PM",
         courts: "4 BWF Standard International Synthetic Courts",
         established: "2021"
     },
 
-    // Default allowed Gmail list for coach/admin portal
+    // Authorized Gmail accounts with Role-Based Access Control (RBAC)
+    // Master Admin: siddharthkoppu@gmail.com (Sole authority to add coaches and parents)
+    // Coach: krishna.coach@gmail.com (Full access to all players, attendance, certs, payments)
+    // Parent: nair.vihaan.parent@gmail.com (Data-isolated view for their child Vihaan Nair)
     allowedGmails: [
         {
-            id: "gmail-1",
-            email: "admin@whitebirdieacademy.com",
-            role: "edit", // "edit" = View and Edit, "view" = Only View
-            name: "Head Admin (Mr. Krishna)",
+            id: "gmail-master-siddharth",
+            email: "siddharthkoppu@gmail.com",
+            role: "admin", // Master Administrator
+            name: "Siddharth Koppu (Master Admin)",
             addedBy: "System Master",
             addedAt: "2026-01-01T00:00:00.000Z"
         },
         {
-            id: "gmail-2",
+            id: "gmail-coach-krishna",
             email: "krishna.coach@gmail.com",
-            role: "edit",
-            name: "Coach Krishna",
-            addedBy: "admin@whitebirdieacademy.com",
+            role: "coach", // Head Coach
+            name: "Coach Mr. Krishna",
+            addedBy: "siddharthkoppu@gmail.com",
             addedAt: "2026-01-15T10:00:00.000Z"
         },
         {
-            id: "gmail-3",
-            email: "assistant.coach@gmail.com",
-            role: "edit",
-            name: "Assistant Coach Rahul",
-            addedBy: "krishna.coach@gmail.com",
-            addedAt: "2026-02-01T12:30:00.000Z"
-        },
-        {
-            id: "gmail-4",
-            email: "observer.parent@gmail.com",
-            role: "view",
-            name: "Academy Observer / Guest",
-            addedBy: "krishna.coach@gmail.com",
+            id: "gmail-parent-vihaan",
+            email: "nair.vihaan.parent@gmail.com",
+            role: "parent", // Parent Account
+            linkedPlayerId: "wb-p105", // Linked to Vihaan Nair
+            name: "Pradeep Nair (Vihaan's Parent)",
+            addedBy: "siddharthkoppu@gmail.com",
             addedAt: "2026-02-20T14:00:00.000Z"
         }
     ],
@@ -169,7 +166,7 @@ const INITIAL_ACADEMY_DATA = {
             totalDays: 40,
             daysPresent: 38,
             medicalNotes: "None.",
-            coachNotes: "Energetic and passionate. Loves net taps and learning racquet control.",
+            coachNotes: "Energetic and passionate. Loves net taps, high-clear drills, and showing rapid agility improvements.",
             registeredAt: "2026-01-08T09:30:00.000Z"
         },
         {
@@ -213,7 +210,7 @@ const INITIAL_ACADEMY_DATA = {
             "wb-p102": "present",
             "wb-p103": "present",
             "wb-p104": "present",
-            "wb-p105": "absent",
+            "wb-p105": "present",
             "wb-p106": "present"
         },
         "2026-09-21": {
@@ -271,6 +268,17 @@ const INITIAL_ACADEMY_DATA = {
             plan: "3 Months Weekend Adults",
             status: "Pending",
             receiptNo: "WB-REC-2026-PEND"
+        },
+        {
+            id: "pay-1005",
+            playerId: "wb-p105",
+            playerName: "Vihaan Nair",
+            amount: 18000,
+            date: "2026-01-10",
+            mode: "UPI (GooglePay)",
+            plan: "6 Months Kids Foundation",
+            status: "Paid",
+            receiptNo: "WB-REC-2026-042"
         }
     ],
 
@@ -299,6 +307,18 @@ const INITIAL_ACADEMY_DATA = {
             coachName: "Mr. Krishna",
             notes: "Exemplary tournament performance, tactical net mastery, and relentless work ethic.",
             issuedAt: "2026-03-01T17:30:00.000Z"
+        },
+        {
+            id: "cert-2026-003",
+            certificateNo: "WBA-CERT-2026-104",
+            playerId: "wb-p105",
+            playerName: "Vihaan Nair",
+            fromLevel: "Beginner Foundation",
+            toLevel: "Smash & Agility Prodigy",
+            awardDate: "2026-03-15",
+            coachName: "Mr. Krishna",
+            notes: "Exceptional enthusiasm, rapid footwork improvement, and consistent attendance.",
+            issuedAt: "2026-03-15T16:00:00.000Z"
         }
     ],
 

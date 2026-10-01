@@ -1,6 +1,6 @@
 # 🏸 White Birdie Badminton Academy
 
-A modern, full-featured website and coach management portal for **White Birdie Badminton Academy**, Kodathi, Karnataka.
+A modern, full-featured public website and role-based management portal for **White Birdie Badminton Academy**, Kodathi, Karnataka.
 
 ## 🌐 Live Site
 
@@ -12,70 +12,67 @@ Once deployed via GitHub Pages, visit:
 ## ✨ Features
 
 ### Public Website
-- **Hero Section** with animated shuttlecock and academy branding
-- **Coach Mr. Krishna Spotlight** with credentials and coaching philosophy
-- **Batch Programs** — Morning, Evening, Weekend batches with pricing
-- **Facilities** — Court details, equipment, amenities
-- **Featured Review** — Real testimonial from a satisfied player
-- **Location & Contact** — Kodathi address, Google Maps embed, phone number
-- **Registration Form** — Public player sign-up with photo upload and live preview
+- **Hero Section** with animated shuttlecock, luxury emerald & dark court aesthetic, and gold accents
+- **Coach Mr. Krishna Spotlight** with credentials, certifications, and coaching philosophy
+- **Batch Programs** — Beginner, Intermediate, Advanced & Weekend batches with pricing
+- **Facilities** — 6 BWF standard synthetic courts, Yonex equipment, video analysis, fitness lounge
+- **Featured Testimonial** — Real review from Praveen Kumar
+- **Location & Contact** — Kodathi address, interactive Google Maps embed, phone number (`08105806408`)
+- **Public Registration Form** — Student registration with live photo upload preview and fee computation
 
 ### 🔐 Secret Coach Access (Hidden Login)
-The admin portal is accessed through a **hidden 4-step click sequence** on the website:
+The portal is accessed through a **sequential 4-step click sequence** on the website:
 
 | Step | Element | Location |
 |------|---------|----------|
 | 1 | 🏸 Shuttlecock Logo | Top navigation bar |
-| 2 | Coach Mr. Krishna name | Hero section badge |
+| 2 | Coach Mr. Krishna Badge | Hero section |
 | 3 | 📍 Kodathi Location Pin | Contact section |
 | 4 | 🪶 Golden Feather Emblem | Footer area |
 
-**Shortcut:** Press `Ctrl + Shift + K` to skip directly to login.  
-**Discreet Link:** A small "🏸" icon in the footer also opens the login modal.
-
-### Coach Portal (After Login)
-- **Dashboard** — Total players, attendance rate, fee collection summary, recent activity table
-- **Player Directory** — Searchable/filterable card grid with photos, attendance bars, fee status; click any card for full profile modal with editable duration, fee status, and notes
-- **Attendance Tab** — Select any date, all players listed with one-click Present / Absent / Leave toggles; bulk mark all; per-player attendance stats
-- **Certificate Generator** — Enter player name and level; live preview with gold seal, ornate borders, and Coach Krishna's signature; print or download as PNG
-- **Payments & Fees** — Log payments, auto-generate receipt numbers, track collected vs pending amounts
-- **Gmail Access Control** — Add/remove authorized Gmail accounts with either "View & Edit" (Full Coach) or "Only View" (Guest Observer) permissions
-- **Settings** — Firebase configuration, data import/export, local storage management
-
-### 🔑 Access Roles
-| Role | Capabilities |
-|------|-------------|
-| **View & Edit** (Coach/Admin) | Full access — add/edit players, mark attendance, generate certificates, log payments, manage Gmail access |
-| **Only View** (Guest/Observer) | Read-only — browse dashboard, view players, see attendance records; all mutation buttons disabled |
+**Shortcut:** Press `Ctrl + Shift + K` to open the login modal directly.  
+**Discreet Link:** A small hidden button in the footer also opens the login modal.
 
 ---
 
-## 🚀 Quick Start
+## 🔑 3-Tier Role-Based Access Control (RBAC)
 
-### Option 1: Open directly
-Double-click `index.html` in your browser. Everything works out of the box with **local storage** and demo data.
-
-### Option 2: Local server (recommended)
-Double-click `run-server.bat` to start a local Python server, then visit `http://localhost:8000`.
-
-### Option 3: Demo login
-1. Open the site
-2. Press `Ctrl + Shift + K` or complete the secret click sequence
-3. Click **"Demo Coach (View & Edit)"** or **"Demo Viewer (Only View)"**
+| Role | Target User | Access & Capabilities |
+|------|-------------|-----------------------|
+| 👑 **Master Admin** | `siddharthkoppu@gmail.com` (Siddharth Koppu) | **Full Administrative Authority**<br>• Sole privilege to invite/remove Coach and Parent accounts<br>• Link parents to their specific child<br>• Full operational access: Players, Attendance, Certificates, Payments, Access Control |
+| 🏸 **Head Coach** | Coach Mr. Krishna & Academy Coaches | **Coaching & Operations**<br>• Full access to: Dashboard, Player Directory, Daily Attendance Marking, Certificate Generation, Payment Logging<br>• Restricted: Cannot manage or view Access Control |
+| 👨‍👧 **Parent** | Parents (e.g. Pradeep Nair) | **Data-Isolated Child Progress**<br>• Exclusively views their own child's progress card (`linkedPlayerId`)<br>• Total days & days present with animated attendance percentage bar<br>• Fee status and payment history<br>• Awarded certificates and Coach Krishna's notes<br>• Strictly isolated: Cannot see other students or coaching tabs |
 
 ---
 
-## 🔥 Firebase Setup (Optional — for live multi-device sync)
+## 🚀 Quick Start & Testing
 
-1. Go to [Firebase Console](https://console.firebase.google.com/) and create a project
-2. Enable **Authentication → Google Sign-In**
-3. Enable **Cloud Firestore** database
-4. Copy your Firebase config from Project Settings → General → Your apps → Config
-5. In the Coach Portal, go to **Settings Tab** and paste each field:
-   - API Key, Auth Domain, Project ID, Storage Bucket, Messaging Sender ID, App ID
-6. Click **Save & Activate Firebase**
+### Option 1: Open Directly
+Double-click `index.html` in your browser. Runs offline-first with zero configuration using browser `localStorage` (key prefix `wb_badminton_v2_`).
 
-Without Firebase, the app runs fully functional using browser localStorage.
+### Option 2: Local Server
+Double-click `run-server.bat` or run:
+```bash
+python -m http.server 8000
+```
+Then open `http://localhost:8000`.
+
+### Option 3: Instant Demo Logins
+1. Open the website.
+2. Press `Ctrl + Shift + K` or complete the 4-step secret click sequence.
+3. Click any of the 3 role buttons:
+   - 👑 **Demo Master Admin (Siddharth Koppu)** → Test full academy control & access management
+   - 🏸 **Demo Coach (Mr. Krishna)** → Test player management, attendance, certificates, and fees
+   - 👨‍👧 **Demo Parent (Vihaan's Parent)** → Test isolated child progress view
+
+---
+
+## 📤 Manual Deployment to GitHub
+
+To push the latest updates to your GitHub repository and deploy on GitHub Pages:
+
+1. Double-click **`push-to-github.bat`** in the project folder.
+2. The script will automatically stage all changes, commit them, and push to the `main` branch.
 
 ---
 
@@ -83,35 +80,26 @@ Without Firebase, the app runs fully functional using browser localStorage.
 
 ```
 white-birdie-badminton-academy/
-├── index.html           # Main HTML — public site + coach portal
-├── styles.css           # Custom styles, glassmorphism, animations, print
-├── app.js               # Public interactions, secret sequence, registration
-├── coach-portal.js      # Full coach portal logic (dashboard, attendance, certs)
-├── firebase-service.js  # Auth + Firestore + localStorage dual-layer service
-├── mock-data.js         # Seed data (players, attendance, payments, reviews)
-├── push-to-github.bat   # One-click deploy to GitHub
-├── run-server.bat       # One-click local development server
-└── README.md            # This file
+├── index.html           # Main HTML — public site + coach portal + parent view
+├── styles.css           # Emerald/gold glassmorphism, animations, print stylesheet
+├── app.js               # Public interactions, secret sequence, registration modal
+├── coach-portal.js      # Coach portal logic (dashboard, attendance, certs, parent view)
+├── firebase-service.js  # 3-tier RBAC + session management + localStorage persistence
+├── mock-data.js         # Seed database (players, attendance, payments, access list)
+├── push-to-github.bat   # One-click manual deploy script to GitHub
+├── run-server.bat       # Local development server script
+└── README.md            # Documentation
 ```
 
 ---
 
-## 📞 Academy Contact
+## 📞 Academy Information
 
+- **Name:** White Birdie Badminton Academy
 - **Address:** VPV9+2CR, Kodathi, Kodathi JHC, Karnataka 560035
 - **Phone:** 08105806408
 - **Head Coach:** Mr. Krishna
-
----
-
-## 🛠 Tech Stack
-
-- **HTML5 / Tailwind CSS** (via CDN) with custom glassmorphic design
-- **Vanilla JavaScript** — no build step, no framework dependencies
-- **Firebase Auth + Firestore** (optional live mode)
-- **localStorage** (offline-first fallback)
-- **html2canvas** for certificate image export
-- **canvas-confetti** for celebration effects
+- **Master Admin:** Siddharth Koppu (`siddharthkoppu@gmail.com`)
 
 ---
 
