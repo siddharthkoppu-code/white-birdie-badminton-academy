@@ -322,7 +322,38 @@ function setupModals() {
     const btnOpenParentLogin = document.getElementById("btn-open-parent-login");
     if (btnOpenParentLogin) {
         btnOpenParentLogin.addEventListener("click", () => {
-            openCoachLoginModal(); // Opens same modal - parents use Google Sign-In
+            const modal = document.getElementById("parent-login-modal");
+            if (modal) modal.classList.remove("hidden");
+        });
+    }
+
+    // Parent Login Modal Close
+    const btnCloseParentLogin = document.getElementById("btn-close-parent-login");
+    if (btnCloseParentLogin) {
+        btnCloseParentLogin.addEventListener("click", () => {
+            const modal = document.getElementById("parent-login-modal");
+            if (modal) modal.classList.add("hidden");
+        });
+    }
+
+    // Parent Google Sign-In Button
+    const btnParentGoogleAuth = document.getElementById("btn-parent-google-signin");
+    if (btnParentGoogleAuth) {
+        btnParentGoogleAuth.addEventListener("click", async () => {
+            try {
+                const res = await window.wbFirebaseService.signInWithGoogle();
+                if (res) {
+                    const modal = document.getElementById("parent-login-modal");
+                    if (modal) modal.classList.add("hidden");
+                    openCoachPortal();
+                }
+            } catch (e) {
+                if (e.isUnauthorized) {
+                    showUnauthorizedModal(e.email);
+                } else {
+                    showToast("⚠️ Sign-In Error: " + e.message, "error");
+                }
+            }
         });
     }
 
@@ -458,12 +489,12 @@ function setupPublicRegistrationForm() {
             endDate: endDate.toISOString().split("T")[0],
             feeStatus: "Pending",
             feeAmount: durationMonths * 3000,
-            status: "Active",
+            status: "Pending Approval",
             photoUrl: uploadedPhotoDataUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
             totalDays: 0,
             daysPresent: 0,
             medicalNotes: medicalNotes || "None reported.",
-            coachNotes: "Newly registered via academy website. Scheduled for introductory assessment.",
+            coachNotes: "Newly registered via academy website. Awaiting coach approval.",
             registeredAt: new Date().toISOString()
         };
 
@@ -483,7 +514,7 @@ function setupPublicRegistrationForm() {
         }
 
         // Show confirmation notification
-        showToast(`🏸 Congratulations ${name}! Your registration has been submitted successfully. Coach Mr. Krishna will contact you at ${phone}. Welcome to the Academy!`, "success");
+        showToast(`🏸 Registration submitted successfully! Coach Mr. Krishna will review your application and contact you at ${phone} soon.`, "success");
     });
 }
 
