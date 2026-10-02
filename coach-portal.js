@@ -1223,7 +1223,12 @@ class CoachPortal {
         });
 
         this.players.forEach(p => {
-            if (p.feeStatus === "Pending") totalPending += Number(p.feeAmount || 5000);
+            if (p.status !== "Pending Approval") {
+                const pend = (p.amountPending !== undefined && p.amountPending !== null)
+                    ? Number(p.amountPending)
+                    : (p.feeStatus === "Pending" ? Number(p.joinedFee || p.feeAmount || 0) : 0);
+                totalPending += pend;
+            }
         });
 
         const statColl = document.getElementById("stat-fee-collected");
@@ -1428,10 +1433,10 @@ class CoachPortal {
         // Clear existing content to prevent duplicates
         listContainer.innerHTML = "";
 
-        // Helper function to get player name from ID
+        // Helper function to get player name and batch from ID
         const getPlayerName = (playerId) => {
             const player = this.players.find(p => p.id === playerId);
-            return player ? player.name : playerId;
+            return player ? `${player.name} (${player.batch || player.skillLevel || 'Student'})` : playerId;
         };
 
         listContainer.innerHTML = this.allowedGmails.map(item => {
@@ -1447,7 +1452,7 @@ class CoachPortal {
             }
 
             const linkedInfo = item.linkedPlayerId
-                ? `<div class="text-[11px] text-blue-400 mt-0.5">🔗 Linked to: ${getPlayerName(item.linkedPlayerId)}</div>`
+                ? `<div class="text-[11px] text-blue-400 mt-0.5 font-medium">🔗 Linked to: ${getPlayerName(item.linkedPlayerId)}</div>`
                 : '';
 
             return `
@@ -1476,7 +1481,9 @@ class CoachPortal {
         const linkedPlayerSelect = document.getElementById("new-gmail-linked-player");
         if (linkedPlayerSelect) {
             linkedPlayerSelect.innerHTML = '<option value="">-- Select Player (Child) --</option>' +
-                this.players.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join('');
+                this.players
+                    .filter(p => p.status !== "Pending Approval")
+                    .map(p => `<option value="${p.id}">${p.name} • ${p.batch || p.skillLevel || 'Student'}</option>`).join('');
         }
 
         // Display current Coach PIN if Master Admin
