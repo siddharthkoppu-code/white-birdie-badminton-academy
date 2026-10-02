@@ -1,250 +1,90 @@
-# 🏸 White Birdie Badminton Academy
+# White Birdie Badminton Academy Management Portal
 
-A modern, full-featured public website and role-based management portal for **White Birdie Badminton Academy**, Kodathi, Karnataka.
+A comprehensive management system for badminton academies featuring player management, attendance tracking, fee management, certificate generation, and more.
 
-## 🌐 Live Site
+## 🏸 Features
 
-Once deployed via GitHub Pages, visit:  
-**https://siddharthkoppu-code.github.io/white-birdie-badminton-academy/**
+- **Player Management**: Complete CRUD operations for student profiles
+- **Attendance Tracking**: Daily attendance with visual indicators
+- **Fee Management**: Automatic fee calculations, payment tracking, monthly updates
+- **Role-Based Access Control**: Master Admin, Coach, and Parent roles with appropriate permissions
+- **Coach PIN Authentication**: Secure PIN login for coaches linked to specific Gmail accounts
+- **Certificate Generation**: Generate level completion certificates
+- **Data Persistence**: Firebase Firestore with localStorage fallback
+- **Responsive Design**: Optimized for mobile, tablet, and desktop devices
+- **Real-time Updates**: Live synchronization across views
 
----
+## 🔐 Authentication System
 
-## ✨ Features
+- **Master Admin**: Full access to all features including Access Control
+- **Coach**: Access to player management, attendance, fees, certificates (except Access Control)
+- **Parent**: Limited view-only access to child's progress
+- **PIN Login**: Coaches can login using a 4-digit PIN linked to their Gmail account
 
-### Public Website
-- **Hero Section** with animated shuttlecock, luxury emerald & dark court aesthetic, and gold accents
-- **Coach Mr. Krishna Spotlight** with credentials, certifications, and coaching philosophy
-- **Batch Programs** — Beginner, Intermediate, Advanced & Weekend batches with pricing
-- **Facilities** — 6 BWF standard synthetic courts, Yonex equipment, video analysis, fitness lounge
-- **Featured Testimonial** — Real review from Praveen Kumar
-- **Location & Contact** — Kodathi address, interactive Google Maps embed, phone number (`08105806408`)
-- **Public Registration Form** — Student registration with live photo upload preview and fee computation
+## 💰 Fee System
 
-### 🔐 Secret Coach Access (Hidden Login)
-The portal is accessed through a **sequential 4-step click sequence** on the website:
+The academy uses a 3-way auto-calculating fee system:
+- **totalFee**: Total amount due for the plan
+- **amountPaid**: Amount paid by the student
+- **amountPending**: Automatically calculated (totalFee - amountPaid)
+- **feeStatus**: Auto-derived as "Paid", "Partial", or "Pending"
 
-| Step | Element | Location |
-|------|---------|----------|
-| 1 | 🏸 Shuttlecock Logo | Top navigation bar |
-| 2 | Coach Mr. Krishna Badge | Hero section |
-| 3 | 📍 Kodathi Location Pin | Contact section |
-| 4 | 🪶 Golden Feather Emblem | Footer area |
+Monthly fee updates can be run manually to add recurring fees based on plan duration.
 
-**Shortcut:** Press `Ctrl + Shift + K` to open the login modal directly.  
-**Discreet Link:** A small hidden button in the footer also opens the login modal.
+## 📱 Mobile Responsiveness
 
----
+The portal is fully responsive and optimized for:
+- Mobile phones (portrait and landscape)
+- Tablets
+- Desktop computers
+- Touch interfaces with minimum 44x44px tap targets
 
-## 🔑 3-Tier Role-Based Access Control (RBAC)
+## 📲 Converting to Mobile Apps
 
-| Role | Target User | Access & Capabilities |
-|------|-------------|-----------------------|
-| 👑 **Master Admin** | `siddharthkoppu@gmail.com` (Siddharth Koppu) | **Full Administrative Authority**<br>• Sole privilege to invite/remove Coach and Parent accounts<br>• Link parents to their specific child<br>• Full operational access: Players, Attendance, Certificates, Payments, Access Control |
-| 🏸 **Head Coach** | Coach Mr. Krishna & Academy Coaches | **Coaching & Operations**<br>• Full access to: Dashboard, Player Directory, Daily Attendance Marking, Certificate Generation, Payment Logging<br>• Restricted: Cannot manage or view Access Control |
-| 👨‍👧 **Parent** | Parents (e.g. Pradeep Nair) | **Data-Isolated Child Progress**<br>• Exclusively views their own child's progress card (`linkedPlayerId`)<br>• Total days & days present with animated attendance percentage bar<br>• Fee status and payment history<br>• Awarded certificates and Coach Krishna's notes<br>• Strictly isolated: Cannot see other students or coaching tabs |
+See `APP_CONVERSION_GUIDE.md` for detailed instructions on converting this web portal to:
+1. Progressive Web App (PWA) - Recommended for easiest deployment
+2. Hybrid apps using Capacitor.js/Ionic
+3. Native apps using React Native/Flutter
 
----
+## 🛠️ Technical Stack
 
-## 🚀 Quick Start & Testing
+- **Frontend**: HTML5, Tailwind CSS, Vanilla JavaScript
+- **Backend**: Firebase Firestore (with localStorage fallback)
+- **Authentication**: Firebase Auth + Custom PIN system
+- **Styling**: Custom CSS with glassmorphism and badminton-themed design
+- **Icons**: Emoji-based for lightweight implementation
 
-### Option 1: Open Directly
-Double-click `index.html` in your browser. Runs offline-first with zero configuration using browser `localStorage` (key prefix `wb_badminton_v2_`).
-
-### Option 2: Local Server
-Double-click `run-server.bat` or run:
-```bash
-python -m http.server 8000
-```
-Then open `http://localhost:8000`.
-
-### Option 3: Secure Google Login
-1. Open the website.
-2. Press `Ctrl + Shift + K` or complete the 4-step secret click sequence.
-3. Click **"Sign in with Google"** and choose your authorized Google account:
-   - **`siddharthkoppu@gmail.com`** → Master Admin (Full Control)
-   - **Authorized Coach Gmail** → Coaching Access (Players, Attendance, Certs, Fees)
-   - **Authorized Parent Gmail** → Child Progress View (Linked to specific student)
-   - **Any Unauthorized Gmail** → ⛔ Access Denied error popup!
-
----
-
-## 🛡️ Cloud Firestore Security Rules Setup
-
-To secure your Cloud Firestore database with role-based access control:
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Open your project **"white-birdie"**
-3. Navigate to **Firestore Database** → **Rules** tab
-4. Replace existing rules with the code block below (or from **`firestore.rules`**):
-
-```javascript
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    // ========================================
-    // HELPER FUNCTIONS
-    // ========================================
-
-    // Check if user is authenticated
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Check if user is Master Admin (Siddharth Koppu)
-    function isMasterAdmin() {
-      return isSignedIn() && request.auth.token.email == 'siddharthkoppu@gmail.com';
-    }
-
-    // Check if user is in allowedGmails collection
-    function isAuthorizedUser() {
-      return isSignedIn() && exists(/databases/$(database)/documents/allowedGmails/$(request.auth.uid));
-    }
-
-    // Get user's role from allowedGmails collection
-    function getUserRole() {
-      return isSignedIn() ? get(/databases/$(database)/documents/allowedGmails/$(request.auth.uid)).data.role : null;
-    }
-
-    // Check if user has coach or admin role
-    function isCoachOrAdmin() {
-      return isMasterAdmin() || (isAuthorizedUser() && getUserRole() in ['coach', 'admin']);
-    }
-
-    // Check if user is a parent
-    function isParent() {
-      return isAuthorizedUser() && getUserRole() == 'parent';
-    }
-
-    // Get parent's linked player ID
-    function getLinkedPlayerId() {
-      return isSignedIn() ? get(/databases/$(database)/documents/allowedGmails/$(request.auth.uid)).data.linkedPlayerId : null;
-    }
-
-    // ========================================
-    // COLLECTION RULES
-    // ========================================
-
-    // allowedGmails - Access Control List (Master Admin ONLY can write)
-    match /allowedGmails/{gmailId} {
-      // Anyone authenticated can read their own entry to check authorization
-      allow read: if isSignedIn() && (
-        isMasterAdmin() ||
-        request.auth.uid == gmailId ||
-        request.auth.token.email == resource.data.email
-      );
-
-      // Only Master Admin can create, update, or delete authorized accounts
-      allow create, update, delete: if isMasterAdmin();
-    }
-
-    // players - Student directory
-    match /players/{playerId} {
-      // Coaches and Admins can read all players
-      // Parents can read ONLY their linked child
-      allow read: if isCoachOrAdmin() ||
-                     (isParent() && playerId == getLinkedPlayerId());
-
-      // Only Coaches and Admins can write (create, update, delete)
-      allow write: if isCoachOrAdmin();
-    }
-
-    // attendance - Daily attendance records (stored as system/attendance document)
-    match /system/attendance {
-      // Coaches and Admins can read all attendance
-      // Parents can read (filtered client-side to their child)
-      allow read: if isCoachOrAdmin() || isParent();
-
-      // Only Coaches and Admins can mark attendance
-      allow write: if isCoachOrAdmin();
-    }
-
-    // payments - Fee payment records
-    match /payments/{paymentId} {
-      // Coaches and Admins can read all payments
-      // Parents can read payments for their linked child only
-      allow read: if isCoachOrAdmin() ||
-                     (isParent() && resource.data.playerId == getLinkedPlayerId());
-
-      // Only Coaches and Admins can log payments
-      allow write: if isCoachOrAdmin();
-    }
-
-    // certificates - Issued certificates
-    match /certificates/{certId} {
-      // Coaches and Admins can read all certificates
-      // Parents can read certificates for their linked child only
-      allow read: if isCoachOrAdmin() ||
-                     (isParent() && resource.data.playerId == getLinkedPlayerId());
-
-      // Only Coaches and Admins can generate certificates
-      allow write: if isCoachOrAdmin();
-    }
-
-    // system - System-wide configuration and metadata
-    match /system/{docId} {
-      // Coaches and Admins can read system docs
-      // Parents can read system docs (for academy info)
-      allow read: if isCoachOrAdmin() || isParent();
-
-      // Only Coaches and Admins can write system docs
-      allow write: if isCoachOrAdmin();
-    }
-
-    // Default deny rule for any other collections
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-```
-
-5. Click **"Publish"**
-
-### Adding Authorized Domains in Firebase:
-1. In Firebase Console, go to **Authentication** → **Settings** tab → **Authorized domains**
-2. Ensure both of these are added:
-   - `localhost` (for local development)
-   - `siddharthkoppu-code.github.io` (for live GitHub Pages)
-
----
-
-## 📤 Manual Deployment to GitHub
-
-To push the latest updates to your GitHub repository and deploy on GitHub Pages:
-
-1. Double-click **`push-to-github.bat`** in the project folder.
-2. The script will automatically stage all changes, commit them, and push to the `main` branch.
-
----
-
-## 📁 Project Structure
+## 📁 File Structure
 
 ```
-white-birdie-badminton-academy/
-├── index.html           # Main HTML — public site + coach portal + parent view
-├── styles.css           # Emerald/gold glassmorphism, animations, print stylesheet
-├── app.js               # Public interactions, secret sequence, registration modal
-├── coach-portal.js      # Coach portal logic (dashboard, attendance, certs, parent view)
-├── firebase-service.js  # Real Firebase Auth + Firestore + 3-tier RBAC
-├── firestore.rules      # Production Firestore Security Rules
-├── mock-data.js         # Seed database (players, attendance, payments, access list)
-├── push-to-github.bat   # One-click manual deploy script to GitHub
-├── run-server.bat       # Local development server script
-└── README.md            # Documentation
+index.html          - Main portal interface
+coach-portal.js     - Main application logic
+firebase-service.js - Firebase integration and data services
+styles.css          - Custom styling and mobile responsiveness
+mock-data.js        - Initial academy data (7 demo players)
+push-to-github.bat  - Manual Git push script (user-operated)
 ```
 
+## 🚀 Getting Started
+
+1. Open `index.html` in a modern web browser
+2. Use Master Admin credentials to access all features
+3. Set up Coach PIN in Access Control tab (Master Admin only)
+4. Coaches can login using PIN for quick access
+5. Parents can view child's progress through Parent Login
+
+## 🔒 Security Features
+
+- Role-based access restrictions
+- PIN-based coach authentication
+- Master Admin-only access to sensitive controls
+- Input validation and sanitization
+- Secure data persistence with Firebase
+
+## 📞 Support & Contact
+
+For technical support or feature requests, contact the system administrator.
+
 ---
-
-## 📞 Academy Information
-
-- **Name:** White Birdie Badminton Academy
-- **Address:** VPV9+2CR, Kodathi, Kodathi JHC, Karnataka 560035
-- **Phone:** 08105806408
-- **Head Coach:** Mr. Krishna
-- **Master Admin:** Siddharth Koppu (`siddharthkoppu@gmail.com`)
-
----
-
-*Built with 🏸 for White Birdie Badminton Academy*
+*White Birdie Badminton Academy Management Portal*
+*Built with ❤️ for badminton coaching excellence*

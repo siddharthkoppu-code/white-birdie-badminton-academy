@@ -111,12 +111,12 @@
                 </div>
 
                 <!-- Desktop Navigation Links -->
-                <nav class="hidden lg:flex items-center gap-7 text-sm font-semibold text-slate-300">
-                    <a href="#about-coach" class="hover:text-emerald-400 transition-colors">Coach Krishna</a>
-                    <a href="#programs" class="hover:text-emerald-400 transition-colors">Coaching Batches</a>
-                    <a href="#facilities" class="hover:text-emerald-400 transition-colors">Courts & Facilities</a>
-                    <a href="#reviews" class="hover:text-emerald-400 transition-colors">Reviews</a>
-                    <a href="#location" class="hover:text-emerald-400 transition-colors">Location & Timings</a>
+                <nav class="hidden lg:flex items-center justify-center gap-8 md:gap-10 text-sm font-semibold text-slate-300 flex-1">
+                    <a href="#about-coach" class="hover:text-emerald-400 transition-colors whitespace-nowrap">Coach Krishna</a>
+                    <a href="#programs" class="hover:text-emerald-400 transition-colors whitespace-nowrap">Coaching Batches</a>
+                    <a href="#facilities" class="hover:text-emerald-400 transition-colors whitespace-nowrap">Courts & Facilities</a>
+                    <a href="#reviews" class="hover:text-emerald-400 transition-colors whitespace-nowrap">Reviews</a>
+                    <a href="#location" class="hover:text-emerald-400 transition-colors whitespace-nowrap">Location & Timings</a>
                 </nav>
 
                 <!-- Action Buttons -->
@@ -937,6 +937,11 @@
 
                             <button onclick="window.wbCoachPortal.switchTab('payments')" class="w-full py-3 px-4 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 font-bold text-xs flex items-center justify-between transition">
                                 <span class="flex items-center gap-2"><span>💳</span> Log Fee Payment</span>
+                                <span>→</span>
+                            </button>
+
+                            <button onclick="window.wbCoachPortal.runMonthlyFeeUpdate()" class="require-edit-role w-full py-3 px-4 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 font-bold text-xs flex items-center justify-between transition">
+                                <span class="flex items-center gap-2"><span>🔄</span> Run Monthly Fee Update</span>
                                 <span>→</span>
                             </button>
                         </div>

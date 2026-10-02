@@ -98,6 +98,206 @@ h1, h2, h3, h4, .font-heading {
     text-shadow: 0 0 15px rgba(0, 245, 155, 0.6);
 }
 
+/* ========== MOBILE RESPONSIVE IMPROVEMENTS ========== */
+
+/* Ensure viewport responsiveness */
+html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-first base adjustments */
+@media (max-width: 768px) {
+    body {
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    /* Smaller headings on mobile */
+    h1 { font-size: 1.75rem !important; }
+    h2 { font-size: 1.5rem !important; }
+    h3 { font-size: 1.25rem !important; }
+    h4 { font-size: 1.1rem !important; }
+
+    /* Better touch targets - minimum 44x44px */
+    button, a, input[type="button"], input[type="submit"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Improve form inputs on mobile */
+    input, select, textarea {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+    }
+
+    /* Stack cards vertically with better spacing */
+    .grid {
+        gap: 1rem !important;
+    }
+
+    /* Better padding on glass cards */
+    .glass-card {
+        padding: 1rem !important;
+    }
+
+    /* Responsive tables - scroll horizontally */
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    /* Modal improvements for mobile */
+    #player-details-modal .glass-card-static,
+    #add-player-modal .glass-card-static,
+    #coach-pin-modal .glass-card-static {
+        max-width: 95vw !important;
+        max-height: 90vh !important;
+        overflow-y: auto;
+        margin: 1rem;
+    }
+
+    /* Smaller stat cards on mobile */
+    #pane-dashboard .grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Stack navigation items */
+    nav a {
+        padding: 0.5rem 0;
+        display: block;
+    }
+
+    /* Better mobile header */
+    header .flex {
+        padding: 0.75rem !important;
+    }
+
+    /* Certificate preview adjustments */
+    #certificate-preview-card {
+        transform: scale(0.7);
+        transform-origin: top center;
+    }
+
+    /* Player cards - better mobile layout */
+    #players-grid-container {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Attendance table - compact view */
+    table {
+        font-size: 0.875rem;
+    }
+
+    table th,
+    table td {
+        padding: 0.5rem 0.25rem !important;
+    }
+
+    /* Filter controls - stack on mobile */
+    .flex-wrap {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    .flex-wrap select,
+    .flex-wrap button {
+        width: 100%;
+    }
+
+    /* Better spacing for portal tabs */
+    .portal-tab-btn {
+        font-size: 0.75rem !important;
+        padding: 0.5rem 0.75rem !important;
+    }
+
+    /* Improve touch scrolling */
+    .space-x-2 {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .space-x-2::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1024px) {
+    #pane-dashboard .grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    #players-grid-container {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* Desktop refinements */
+@media (min-width: 1024px) {
+    #players-grid-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Large desktop */
+@media (min-width: 1440px) {
+    #players-grid-container {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Touch-friendly interactions */
+@media (hover: none) and (pointer: coarse) {
+    .hover\:scale-105:active {
+        transform: scale(0.95);
+    }
+
+    .glass-card:active {
+        transform: translateY(1px);
+    }
+
+    button:active {
+        opacity: 0.8;
+    }
+}
+
+/* Landscape phone optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+    #player-details-modal .glass-card-static {
+        max-height: 80vh !important;
+    }
+
+    .portal-tab-btn {
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.7rem !important;
+    }
+}
+
+/* Safe area insets for notched devices (iPhone X+) */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+    }
+
+    header {
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+}
+
+/* Prevent horizontal scroll on mobile */
+body {
+    overflow-x: hidden;
+}
+
+/* Better loading states for touch devices */
+@media (hover: none) {
+    .transition {
+        transition-duration: 150ms;
+    }
+}
+
 .neon-border-glow {
     box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.35);
 }

@@ -496,14 +496,17 @@ class FirebaseService {
             try {
                 const doc = await this.db.collection("system").doc("coachPIN").get();
                 if (doc.exists) {
-                    const storedPin = doc.data().pin;
+                    const data = doc.data();
+                    const storedPin = data.pin;
+                    const linkedGmail = data.linkedGmail || "coach@whitebirdie.local";
+
                     if (storedPin === pin) {
-                        // PIN verified - auto-login as coach role
+                        // PIN verified - auto-login with linked Gmail
                         this.currentUser = {
                             uid: "pin-authenticated-coach",
-                            email: "coach@whitebirdie.local",
-                            displayName: "Coach (PIN Login)",
-                            photoURL: "https://ui-avatars.com/api/?name=Coach&background=0F382C&color=10B981",
+                            email: linkedGmail,
+                            displayName: linkedGmail === "coach@whitebirdie.local" ? "Coach (PIN Login)" : linkedGmail.split('@')[0],
+                            photoURL: `https://ui-avatars.com/api/?name=${linkedGmail.split('@')[0]}&background=0F382C&color=10B981`,
                             role: "coach",
                             linkedPlayerId: null
                         };
@@ -527,16 +530,19 @@ class FirebaseService {
 
         // Fallback to localStorage
         try {
-            const storedPin = localStorage.getItem(this.storageKeyPrefix + "coach_pin");
-            if (storedPin === pin) {
-                this.currentUser = {
-                    uid: "pin-authenticated-coach",
-                    email: "coach@whitebirdie.local",
-                    displayName: "Coach (PIN Login)",
-                    photoURL: "https://ui-avatars.com/api/?name=Coach&background=0F382C&color=10B981",
-                    role: "coach",
-                    linkedPlayerId: null
-                };
+            const storedData = localStorage.getItem(this.storageKeyPrefix + "coach_pin_data");
+            if (storedData) {
+                const data = JSON.parse(storedData);
+                if (data.pin === pin) {
+                    const linkedGmail = data.linkedGmail || "coach@whitebirdie.local";
+                    this.currentUser = {
+                        uid: "pin-authenticated-coach",
+                        email: linkedGmail,
+                        displayName: linkedGmail === "coach@whitebirdie.local" ? "Coach (PIN Login)" : linkedGmail.split('@')[0],
+                        photoURL: `https://ui-avatars.com/api/?name=${linkedGmail.split('@')[0]}&background=0F382C&color=10B981`,
+                        role: "coach",
+                        linkedPlayerId: null
+                    };
                 this.userRole = "coach";
                 this.linkedPlayerId = null;
 
@@ -553,8 +559,8 @@ class FirebaseService {
         return false;
     }
 
-    // Set Coach PIN (Master Admin only)
-    async setCoachPIN(pin) {
+    // Set Coach PIN (Master Admin only) - now accepts linkedGmail parameter
+    async setCoachPIN(pin, linkedGmail = "coach@whitebirdie.local") {
         // Enforce Master Admin check
         if (this.userRole !== "admin") {
             throw new Error("Unauthorized: Only Master Admin can set the Coach PIN.");
@@ -569,6 +575,7 @@ class FirebaseService {
             try {
                 await this.db.collection("system").doc("coachPIN").set({
                     pin: pin,
+                    linkedGmail: linkedGmail,
                     setBy: this.currentUser.email,
                     setAt: new Date().toISOString()
                 });
@@ -579,10 +586,13 @@ class FirebaseService {
 
         // Save to localStorage fallback
         try {
-            localStorage.setItem(this.storageKeyPrefix + "coach_pin", pin);
+            localStorage.setItem(this.storageKeyPrefix + "coach_pin_data", JSON.stringify({
+                pin: pin,
+                linkedGmail: linkedGmail
+            }));
         } catch (e) {}
 
-        return { success: true, pin: pin };
+        return { success: true, pin: pin, linkedGmail: linkedGmail };
     }
 
     // Get current Coach PIN (Master Admin only)
@@ -596,7 +606,7 @@ class FirebaseService {
             try {
                 const doc = await this.db.collection("system").doc("coachPIN").get();
                 if (doc.exists) {
-                    return doc.data().pin || null;
+                    return doc.data() || null;
                 }
             } catch (e) {
                 console.warn("Firestore PIN retrieval fallback:", e.message);
@@ -605,10 +615,57 @@ class FirebaseService {
 
         // Fallback to localStorage
         try {
-            return localStorage.getItem(this.storageKeyPrefix + "coach_pin") || null;
+            const data = localStorage.getItem(this.storageKeyPrefix + "coach_pin_data");
+            return data ? JSON.parse(data) : null;
         } catch (e) {
             return null;
         }
+    }
+
+    // Monthly fee update - checks all players and updates fees based on plan duration
+    async runMonthlyFeeUpdate() {
+        const players = await this.getPlayers();
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        let updatedCount = 0;
+
+        for (const player of players) {
+            // Skip if player is not active
+            if (player.status !== "Active") continue;
+
+            // Check if player has a plan duration
+            const planMonths = player.durationMonths || 3;
+
+            // Calculate months since start date
+            const startDate = player.startDate ? new Date(player.startDate) : null;
+            if (!startDate) continue;
+
+            const monthsSinceStart = (currentYear - startDate.getFullYear()) * 12 + (currentMonth - startDate.getMonth());
+
+            // Check if it's time for a new monthly fee cycle
+            // Each plan duration triggers a new fee cycle
+            if (monthsSinceStart > 0 && monthsSinceStart % planMonths === 0) {
+                // Check if we already updated for this cycle
+                const lastUpdate = player.lastFeeUpdate ? new Date(player.lastFeeUpdate) : null;
+                const lastUpdateMonth = lastUpdate ? (lastUpdate.getFullYear() * 12 + lastUpdate.getMonth()) : -1;
+                const currentCycleMonth = currentYear * 12 + currentMonth;
+
+                if (lastUpdateMonth !== currentCycleMonth) {
+                    // Add the plan fee to pending
+                    const planFee = player.joinedFee || player.feeAmount || 0;
+                    player.amountPending = (player.amountPending || 0) + planFee;
+                    player.feeStatus = "Pending";
+                    player.lastFeeUpdate = now.toISOString();
+
+                    await this.savePlayer(player);
+                    updatedCount++;
+                }
+            }
+        }
+
+        return { updated: updatedCount, totalChecked: players.length };
     }
 }
 

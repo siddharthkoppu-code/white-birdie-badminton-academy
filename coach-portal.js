@@ -85,11 +85,12 @@ class CoachPortal {
         const btnPrevDay = document.getElementById("btn-att-prev");
         if (btnPrevDay) {
             btnPrevDay.addEventListener("click", () => {
-                const parts = this.selectedAttendanceDate.split("-").map(Number);
-                const d = new Date(parts[0], parts[1] - 1, parts[2] - 1);
-                const yyyy = d.getFullYear();
-                const mm = String(d.getMonth() + 1).padStart(2, "0");
-                const dd = String(d.getDate()).padStart(2, "0");
+                // Create date object and subtract 1 day
+                const currentDate = new Date(this.selectedAttendanceDate + "T00:00:00");
+                currentDate.setDate(currentDate.getDate() - 1);
+                const yyyy = currentDate.getFullYear();
+                const mm = String(currentDate.getMonth() + 1).padStart(2, "0");
+                const dd = String(currentDate.getDate()).padStart(2, "0");
                 this.selectedAttendanceDate = `${yyyy}-${mm}-${dd}`;
                 if (datePicker) datePicker.value = this.selectedAttendanceDate;
                 this.renderAttendanceTab();
@@ -99,11 +100,12 @@ class CoachPortal {
         const btnNextDay = document.getElementById("btn-att-next");
         if (btnNextDay) {
             btnNextDay.addEventListener("click", () => {
-                const parts = this.selectedAttendanceDate.split("-").map(Number);
-                const d = new Date(parts[0], parts[1] - 1, parts[2] + 1);
-                const yyyy = d.getFullYear();
-                const mm = String(d.getMonth() + 1).padStart(2, "0");
-                const dd = String(d.getDate()).padStart(2, "0");
+                // Create date object and add 1 day
+                const currentDate = new Date(this.selectedAttendanceDate + "T00:00:00");
+                currentDate.setDate(currentDate.getDate() + 1);
+                const yyyy = currentDate.getFullYear();
+                const mm = String(currentDate.getMonth() + 1).padStart(2, "0");
+                const dd = String(currentDate.getDate()).padStart(2, "0");
                 this.selectedAttendanceDate = `${yyyy}-${mm}-${dd}`;
                 if (datePicker) datePicker.value = this.selectedAttendanceDate;
                 this.renderAttendanceTab();
@@ -595,7 +597,10 @@ class CoachPortal {
 
                     <!-- Action Footer -->
                     <div class="pt-3 border-t border-emerald-950/60 flex items-center justify-between">
-                        <span class="text-xs text-slate-400">Click to view & edit details</span>
+                        <button onclick="event.stopPropagation(); window.wbCoachPortal.confirmDeletePlayer('${player.id}', '${player.name}')"
+                                class="text-xs px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition font-semibold ${window.wbFirebaseService.userRole === 'parent' ? 'hidden' : ''}">
+                            🗑️ Remove
+                        </button>
                         <span class="text-emerald-400 text-xs font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                             View Profile →
                         </span>
@@ -2112,6 +2117,55 @@ class CoachPortal {
         document.getElementById("cert-from-level").value = player.skillLevel || "Foundation";
         document.getElementById("cert-to-level").value = player.skillLevel === "Beginner" ? "Intermediate Smash Master" : "Advanced Elite Squad Champion";
         this.updateCertificatePreview();
+    }
+
+    async runMonthlyFeeUpdate() {
+        const role = window.wbFirebaseService.userRole;
+        if (role === 'parent') {
+            showToast("❌ Parents cannot run fee updates", "error");
+            return;
+        }
+
+        try {
+            showToast("🔄 Running monthly fee update...", "info");
+            const result = await window.wbFirebaseService.runMonthlyFeeUpdate();
+
+            this.players = await window.wbFirebaseService.getPlayers();
+            this.renderDashboardTab();
+            this.renderPlayersTab();
+            this.renderAttendanceTab();
+            this.renderPaymentsTab();
+
+            showToast(`✅ Monthly fee update complete! ${result.updated} players updated out of ${result.totalChecked} checked.`, "success");
+        } catch (error) {
+            console.error("Error running monthly fee update:", error);
+            showToast(`❌ Failed to run fee update: ${error.message}`, "error");
+        }
+    }
+
+    async confirmDeletePlayer(playerId, playerName) {
+        const role = window.wbFirebaseService.userRole;
+        if (role === 'parent') {
+            showToast("❌ Parents cannot delete players", "error");
+            return;
+        }
+
+        const confirmed = confirm(`⚠️ Are you sure you want to permanently remove ${playerName} from the academy?\n\nThis action cannot be undone.`);
+        if (!confirmed) return;
+
+        try {
+            await window.wbFirebaseService.deletePlayer(playerId);
+            this.players = await window.wbFirebaseService.getPlayers();
+
+            this.renderPlayersTab();
+            this.renderDashboardTab();
+            this.renderAttendanceTab();
+
+            showToast(`✅ ${playerName} has been removed from the academy`, "success");
+        } catch (error) {
+            console.error("Error deleting player:", error);
+            showToast(`❌ Failed to remove player: ${error.message}`, "error");
+        }
     }
 }
 
