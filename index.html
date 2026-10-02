@@ -148,6 +148,10 @@
                 <a href="#reviews" class="block text-slate-300 hover:text-emerald-400">Reviews & Feedback</a>
                 <a href="#location" class="block text-slate-300 hover:text-emerald-400">Location & Contact</a>
                 <div class="pt-2 border-t border-emerald-900 flex flex-col gap-2">
+                    <button class="btn-trigger-parent-login w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-600/20 to-blue-600/20 text-cyan-300 font-bold text-center border border-cyan-500/40 flex items-center justify-center gap-2">
+                        <span>👨‍👧</span>
+                        <span>Parent / Student Login</span>
+                    </button>
                     <button class="btn-trigger-register w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-center">
                         ⚡ Register for Coaching
                     </button>
@@ -830,6 +834,10 @@
                 <button data-tab="attendance" class="portal-tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-400 hover:text-white hover:bg-emerald-950/40 transition flex items-center gap-1.5">
                     <span>📅</span> Daily Attendance
                 </button>
+                <button data-tab="approvals" class="portal-tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-400 hover:text-white hover:bg-emerald-950/40 transition flex items-center gap-1.5 relative">
+                    <span>📝</span> Student Approvals
+                    <span id="badge-pending-approvals" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">0</span>
+                </button>
                 <button data-tab="certificates" class="portal-tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-400 hover:text-white hover:bg-emerald-950/40 transition flex items-center gap-1.5">
                     <span>🏆</span> Certificate Generator
                 </button>
@@ -1063,6 +1071,26 @@
                     </div>
                 </div>
 
+            </div>
+
+            <!-- ================= PANE 3.5: STUDENT APPROVALS TAB ================= -->
+            <div id="pane-approvals" class="portal-tab-pane hidden space-y-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-card p-6 rounded-2xl border border-emerald-900/40">
+                    <div>
+                        <h2 class="font-heading font-black text-2xl text-white flex items-center gap-2">
+                            <span>📝</span> Student Admissions & Approvals
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Review and approve online student registrations submitted through the academy website.
+                        </p>
+                    </div>
+                    <div class="px-4 py-2 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-xs font-mono text-emerald-300">
+                        Coach Mr. Krishna & Master Admin Siddharth Koppu
+                    </div>
+                </div>
+                <div id="approvals-list-container" class="space-y-4">
+                    <!-- Populated dynamically by renderApprovalsTab() -->
+                </div>
             </div>
 
             <!-- ================= PANE 4: CERTIFICATE GENERATOR ================= -->

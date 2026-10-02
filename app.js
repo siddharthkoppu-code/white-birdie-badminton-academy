@@ -99,6 +99,62 @@ function showToast(message, type = "info") {
     }, 5000);
 }
 
+// In-App Confirm Dialog (Replaces native browser confirm())
+function showConfirmModal({ title = "Confirm Action", message = "Are you sure you want to proceed?", confirmText = "Confirm", cancelText = "Cancel", isDanger = false, onConfirm, onCancel }) {
+    const existing = document.getElementById("in-app-confirm-modal");
+    if (existing) existing.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "in-app-confirm-modal";
+    modal.className = "fixed inset-0 z-[110] overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4";
+    modal.innerHTML = `
+        <div class="glass-card rounded-3xl max-w-md w-full border ${isDanger ? 'border-rose-500/50' : 'border-emerald-500/40'} shadow-2xl relative overflow-hidden p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl ${isDanger ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'} flex items-center justify-center text-2xl flex-shrink-0">
+                    ${isDanger ? '⚠️' : '❓'}
+                </div>
+                <div>
+                    <h3 class="font-heading font-bold text-lg text-white">${title}</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Please confirm your decision</p>
+                </div>
+            </div>
+
+            <p class="text-sm text-slate-300 leading-relaxed bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+                ${message}
+            </p>
+
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button type="button" id="confirm-modal-cancel" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
+                    ${cancelText}
+                </button>
+                <button type="button" id="confirm-modal-ok" class="px-5 py-2.5 rounded-xl ${isDanger ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-900/30' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/30'} text-white text-xs font-bold shadow-lg transition">
+                    ${confirmText}
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeModal = () => {
+        modal.classList.add("opacity-0");
+        setTimeout(() => modal.remove(), 200);
+    };
+
+    document.getElementById("confirm-modal-cancel").addEventListener("click", () => {
+        closeModal();
+        if (typeof onCancel === "function") onCancel();
+    });
+
+    document.getElementById("confirm-modal-ok").addEventListener("click", () => {
+        closeModal();
+        if (typeof onConfirm === "function") onConfirm();
+    });
+}
+
+window.showToast = showToast;
+window.showConfirmModal = showConfirmModal;
+
 // ================= AUTH UI STATE =================
 function updateAuthUI(user, role) {
     const portalContainer = document.getElementById("coach-portal-screen");
@@ -318,7 +374,7 @@ function setupModals() {
         });
     }
 
-    // Parent/Student Login button
+    // Parent/Student Login buttons (ID and class triggers)
     const btnOpenParentLogin = document.getElementById("btn-open-parent-login");
     if (btnOpenParentLogin) {
         btnOpenParentLogin.addEventListener("click", () => {
@@ -326,6 +382,14 @@ function setupModals() {
             if (modal) modal.classList.remove("hidden");
         });
     }
+
+    const parentTriggers = document.querySelectorAll(".btn-trigger-parent-login");
+    parentTriggers.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const modal = document.getElementById("parent-login-modal");
+            if (modal) modal.classList.remove("hidden");
+        });
+    });
 
     // Parent Login Modal Close
     const btnCloseParentLogin = document.getElementById("btn-close-parent-login");

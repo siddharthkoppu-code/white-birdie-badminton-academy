@@ -192,6 +192,30 @@ const INITIAL_ACADEMY_DATA = {
             medicalNotes: "None.",
             coachNotes: "Ready for shift to Advanced Squad after state ranking trials.",
             registeredAt: "2026-02-10T14:15:00.000Z"
+        },
+        {
+            id: "wb-p107",
+            name: "Devansh Reddy",
+            gender: "Male",
+            age: 13,
+            dob: "2013-08-10",
+            phone: "9880011223",
+            email: "reddy.devansh@gmail.com",
+            emergencyContact: "Venkatesh Reddy (Father) - 9880099887",
+            skillLevel: "Beginner",
+            batch: "Evening Junior Competitive (6:00 PM - 7:30 PM)",
+            durationMonths: 3,
+            startDate: "2026-10-01",
+            endDate: "2027-01-01",
+            feeStatus: "Pending",
+            feeAmount: 9000,
+            status: "Pending Approval",
+            photoUrl: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&auto=format&fit=crop&q=80",
+            totalDays: 0,
+            daysPresent: 0,
+            medicalNotes: "None reported.",
+            coachNotes: "Newly registered online via academy website. Awaiting coach/admin review.",
+            registeredAt: "2026-10-01T11:45:00.000Z"
         }
     ],
 

@@ -257,6 +257,7 @@ class CoachPortal {
         if (tabId === "dashboard") this.renderDashboardTab();
         if (tabId === "players") this.renderPlayersTab();
         if (tabId === "attendance") this.renderAttendanceTab();
+        if (tabId === "approvals") this.renderApprovalsTab();
         if (tabId === "certificates") this.renderCertificatesTab();
         if (tabId === "payments") this.renderPaymentsTab();
         if (tabId === "access") this.renderAccessTab();
@@ -277,6 +278,7 @@ class CoachPortal {
             this.renderDashboardTab();
             this.renderPlayersTab();
             this.renderAttendanceTab();
+            this.renderApprovalsTab();
             this.renderCertificatesTab();
             this.renderPaymentsTab();
             if (role === "admin") {
@@ -777,6 +779,190 @@ class CoachPortal {
         }
     }
 
+    // ================= TAB 3.5: STUDENT ADMISSIONS & APPROVALS =================
+    renderApprovalsTab() {
+        const container = document.getElementById("approvals-list-container");
+        const badge = document.getElementById("badge-pending-approvals");
+
+        const pendingPlayers = this.players.filter(p => p.status === "Pending Approval" || p.status === "Pending");
+
+        // Update badge count in navigation
+        if (badge) {
+            if (pendingPlayers.length > 0) {
+                badge.textContent = pendingPlayers.length;
+                badge.classList.remove("hidden");
+            } else {
+                badge.classList.add("hidden");
+            }
+        }
+
+        if (!container) return;
+
+        if (pendingPlayers.length === 0) {
+            container.innerHTML = `
+                <div class="glass-card rounded-3xl p-12 text-center border border-emerald-900/30">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl mx-auto mb-4">
+                        ✨
+                    </div>
+                    <h3 class="text-xl font-bold font-heading text-white">All Caught Up!</h3>
+                    <p class="text-sm text-slate-400 mt-1 max-w-md mx-auto">
+                        There are currently no pending online registrations. When new students apply via the website, their applications will appear here for review.
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        const role = window.wbFirebaseService.userRole;
+        const canAction = (role === "admin" || role === "coach");
+
+        container.innerHTML = pendingPlayers.map(player => {
+            const fee = player.feeAmount || (player.durationMonths ? player.durationMonths * 3000 : 3000);
+            const regDate = player.registeredAt ? new Date(player.registeredAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : "Recently";
+
+            return `
+                <div class="glass-card rounded-3xl p-6 border border-amber-500/30 relative overflow-hidden transition hover:border-amber-500/60 space-y-5">
+                    <div class="absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl bg-amber-500/20 border-b border-l border-amber-500/40 text-amber-300 text-xs font-bold font-mono">
+                        ⏳ Applied on ${regDate}
+                    </div>
+
+                    <div class="flex flex-col md:flex-row items-start md:items-center gap-5 pt-2">
+                        <img src="${player.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80'}"
+                             class="w-20 h-20 rounded-2xl object-cover border-2 border-amber-400/50 shadow-lg flex-shrink-0" alt="${player.name}">
+                        <div class="flex-1 space-y-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 class="text-xl font-bold text-white font-heading">${player.name}</h3>
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                    Pending Approval
+                                </span>
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                    ${player.skillLevel || 'Beginner'}
+                                </span>
+                            </div>
+                            <div class="text-xs text-slate-300 flex flex-wrap gap-x-4 gap-y-1">
+                                <span>🏸 <strong>Batch:</strong> ${player.batch}</span>
+                                <span>📅 <strong>Plan:</strong> ${player.durationMonths || 1} Month(s)</span>
+                                <span>💰 <strong>Joined Fee:</strong> ₹${fee.toLocaleString('en-IN')}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-900/50 p-4 rounded-2xl border border-slate-800 text-xs">
+                        <div>
+                            <span class="text-slate-400 block font-semibold mb-0.5">Contact Phone</span>
+                            <a href="tel:${player.phone}" class="text-emerald-400 font-mono font-bold hover:underline flex items-center gap-1">
+                                📞 ${player.phone}
+                            </a>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-semibold mb-0.5">Email Address</span>
+                            <a href="mailto:${player.email}" class="text-slate-200 font-mono hover:underline truncate block">
+                                ✉️ ${player.email}
+                            </a>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-semibold mb-0.5">Age / Gender</span>
+                            <span class="text-slate-200 font-semibold">🎂 ${player.age || 'N/A'} yrs • ${player.gender || 'Not specified'}</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-semibold mb-0.5">Emergency Contact</span>
+                            <span class="text-slate-200 font-semibold">🛡️ ${player.emergencyContact || 'None provided'}</span>
+                        </div>
+                    </div>
+
+                    ${player.medicalNotes && player.medicalNotes !== "None reported." ? `
+                        <div class="px-4 py-2.5 rounded-xl bg-rose-950/30 border border-rose-500/20 text-xs text-rose-200">
+                            <strong>⚠️ Medical Notes:</strong> ${player.medicalNotes}
+                        </div>
+                    ` : ''}
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-slate-800">
+                        <button type="button" onclick="window.wbCoachPortal.rejectPlayer('${player.id}')"
+                                ${!canAction ? 'disabled' : ''}
+                                class="px-4 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-500/30 text-xs font-bold transition flex items-center gap-1.5">
+                            ✗ Reject Application
+                        </button>
+                        <button type="button" onclick="window.wbCoachPortal.approvePlayer('${player.id}')"
+                                ${!canAction ? 'disabled' : ''}
+                                class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/40 transition flex items-center gap-1.5">
+                            ✓ Approve & Enroll Student
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    async approvePlayer(playerId) {
+        const role = window.wbFirebaseService.userRole;
+        if (role !== "admin" && role !== "coach") {
+            showToast("🔒 Requires Coach or Admin permission.", "warning");
+            return;
+        }
+
+        const player = this.players.find(p => p.id === playerId);
+        if (!player) return;
+
+        player.status = "Active";
+        player.feeStatus = player.feeStatus || "Pending";
+        player.startDate = player.startDate || this.getTodayDateString();
+
+        if (!player.endDate) {
+            const start = new Date(player.startDate);
+            start.setMonth(start.getMonth() + (player.durationMonths || 1));
+            player.endDate = start.toISOString().split("T")[0];
+        }
+
+        player.coachNotes = `Approved by ${role === 'admin' ? 'Master Admin Siddharth Koppu' : 'Coach Mr. Krishna'} on ${this.getTodayDateString()}.`;
+
+        await window.wbFirebaseService.savePlayer(player);
+        this.players = await window.wbFirebaseService.getPlayers();
+
+        this.renderApprovalsTab();
+        this.renderPlayersTab();
+        this.renderDashboardTab();
+        this.renderAttendanceTab();
+        this.populatePlayerDropdowns();
+
+        if (typeof confetti !== "undefined") {
+            confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        }
+
+        showToast(`🎉 ${player.name} has been approved and enrolled in ${player.batch}!`, "success");
+    }
+
+    async rejectPlayer(playerId) {
+        const role = window.wbFirebaseService.userRole;
+        if (role !== "admin" && role !== "coach") {
+            showToast("🔒 Requires Coach or Admin permission.", "warning");
+            return;
+        }
+
+        const player = this.players.find(p => p.id === playerId);
+        if (!player) return;
+
+        window.showConfirmModal({
+            title: "Reject Registration",
+            message: `Are you sure you want to reject the application for ${player.name}? This will remove the registration record.`,
+            confirmText: "Yes, Reject",
+            cancelText: "Cancel",
+            isDanger: true,
+            onConfirm: async () => {
+                await window.wbFirebaseService.deletePlayer(playerId);
+                this.players = await window.wbFirebaseService.getPlayers();
+
+                this.renderApprovalsTab();
+                this.renderPlayersTab();
+                this.renderDashboardTab();
+                this.populatePlayerDropdowns();
+
+                showToast(`Application for ${player.name} removed.`, "info");
+            }
+        });
+    }
+
     // ================= TAB 4: CERTIFICATE GENERATOR =================
     renderCertificatesTab() {
         this.updateCertificatePreview();
@@ -1197,7 +1383,11 @@ class CoachPortal {
         doc.text(`₹${amountPaid.toLocaleString('en-IN')}`, 160, 158, { align: "right" });
 
         doc.text(`Amount Pending:`, 25, 168);
-        doc.setTextColor(amountPending > 0 ? 217, 119, 6 : 16, 185, 129);
+        if (amountPending > 0) {
+            doc.setTextColor(217, 119, 6); // Amber for pending
+        } else {
+            doc.setTextColor(16, 185, 129); // Green for paid
+        }
         doc.text(`₹${amountPending.toLocaleString('en-IN')}`, 160, 168, { align: "right" });
 
         // Payment Mode
@@ -1386,11 +1576,22 @@ class CoachPortal {
             return;
         }
 
-        if (confirm("Are you sure you want to revoke access for this Gmail?")) {
-            await window.wbFirebaseService.removeAllowedGmail(id);
-            this.allowedGmails = await window.wbFirebaseService.getAllowedGmails();
-            this.renderAccessTab();
-        }
+        const target = this.allowedGmails.find(item => item.id === id);
+        const emailName = target ? target.email : "this account";
+
+        window.showConfirmModal({
+            title: "Revoke Access",
+            message: `Are you sure you want to revoke system access for ${emailName}? They will no longer be able to log in.`,
+            confirmText: "Yes, Revoke Access",
+            cancelText: "Cancel",
+            isDanger: true,
+            onConfirm: async () => {
+                await window.wbFirebaseService.removeAllowedGmail(id);
+                this.allowedGmails = await window.wbFirebaseService.getAllowedGmails();
+                this.renderAccessTab();
+                showToast(`Access revoked for ${emailName}.`, "info");
+            }
+        });
     }
 
     // ================= TAB 7: PARENT VIEW (CHILD PROGRESS) =================
@@ -1577,6 +1778,8 @@ class CoachPortal {
                 </div>
 
             </div>
+        `;
+
         // After rendering parent view, initialize the calendar
         this.parentCalendarDate = new Date();
         this.renderParentCalendar(child);
@@ -1643,6 +1846,8 @@ class CoachPortal {
             this.renderParentCalendar(child);
         }
     }
+
+    exportFullBackup() {
         const fullBackup = {
             players: this.players,
             attendance: this.attendance,
