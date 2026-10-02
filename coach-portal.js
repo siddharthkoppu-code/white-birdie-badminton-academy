@@ -182,38 +182,43 @@ class CoachPortal {
             }
         });
 
-        // Generate Certificate Form Submit
+        // Generate Certificate Form Submit (Idempotent)
         const certForm = document.getElementById("cert-generator-form");
-        if (certForm) {
+        if (certForm && !certForm._hasListener) {
+            certForm._hasListener = true;
             certForm.addEventListener("submit", (e) => {
                 e.preventDefault();
                 this.handleGenerateCertificate();
             });
         }
 
-        // Certificate Print & Download
+        // Certificate Print & Download (Idempotent)
         const btnPrintCert = document.getElementById("btn-print-certificate");
-        if (btnPrintCert) {
+        if (btnPrintCert && !btnPrintCert._hasListener) {
+            btnPrintCert._hasListener = true;
             btnPrintCert.addEventListener("click", () => window.print());
         }
 
         const btnDownloadCert = document.getElementById("btn-download-certificate");
-        if (btnDownloadCert) {
+        if (btnDownloadCert && !btnDownloadCert._hasListener) {
+            btnDownloadCert._hasListener = true;
             btnDownloadCert.addEventListener("click", () => this.downloadCertificateImage());
         }
 
-        // Add Gmail Allowlist Form
+        // Add Gmail Allowlist Form (Idempotent)
         const addGmailForm = document.getElementById("add-gmail-form");
-        if (addGmailForm) {
+        if (addGmailForm && !addGmailForm._hasListener) {
+            addGmailForm._hasListener = true;
             addGmailForm.addEventListener("submit", (e) => {
                 e.preventDefault();
                 this.handleAddAllowedGmail();
             });
         }
 
-        // Add Payment Form
+        // Add Payment Form (Idempotent)
         const addPaymentForm = document.getElementById("add-payment-form");
-        if (addPaymentForm) {
+        if (addPaymentForm && !addPaymentForm._hasListener) {
+            addPaymentForm._hasListener = true;
             addPaymentForm.addEventListener("submit", (e) => {
                 e.preventDefault();
                 this.handleAddPayment();
@@ -1981,9 +1986,7 @@ class CoachPortal {
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Joined Fee (Total)</label>
-                                    <div class="bg-slate-900 rounded-xl px-4 py-2 text-white text-sm font-mono">
-                                        ₹${(player.joinedFee || player.feeAmount || 0).toLocaleString('en-IN')}
-                                    </div>
+                                    <input type="number" id="modal-edit-joined-fee" value="${player.joinedFee || player.feeAmount || 0}" ${isReadOnly ? 'disabled' : ''} class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm focus:border-emerald-500 outline-none">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Amount Paid</label>
@@ -2069,7 +2072,14 @@ class CoachPortal {
         player.medicalNotes = document.getElementById("modal-edit-medical").value;
         player.coachNotes = document.getElementById("modal-edit-coach-notes").value;
 
-        // Get amount paid from input
+        // Get joined fee and amount paid from inputs
+        const joinedFeeInput = document.getElementById("modal-edit-joined-fee");
+        if (joinedFeeInput) {
+            player.joinedFee = Number(joinedFeeInput.value);
+            player.totalFee = Number(joinedFeeInput.value);
+            player.feeAmount = Number(joinedFeeInput.value);
+        }
+
         const amountPaidInput = document.getElementById("modal-edit-amount-paid");
         if (amountPaidInput) {
             player.amountPaid = Number(amountPaidInput.value);
