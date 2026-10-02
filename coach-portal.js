@@ -1970,17 +1970,42 @@ class CoachPortal {
                         <div>
                             <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Skill Level</label>
                             <select id="modal-edit-skill" ${isReadOnly ? 'disabled' : ''} class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-emerald-500 outline-none">
-                                <option value="Beginner" ${player.skillLevel === 'Beginner' ? 'selected' : ''}>Beginner</option>
+                                <option value="Beginner" ${player.skillLevel === 'Beginner' ? 'selected' : ''}>Begin</option>
                                 <option value="Intermediate" ${player.skillLevel === 'Intermediate' ? 'selected' : ''}>Intermediate</option>
                                 <option value="Advanced" ${player.skillLevel === 'Advanced' ? 'selected' : ''}>Advanced</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Fee Status</label>
-                            <select id="modal-edit-fee-status" ${isReadOnly ? 'disabled' : ''} class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-emerald-500 outline-none">
-                                <option value="Paid" ${player.feeStatus === 'Paid' ? 'selected' : ''}>Paid</option>
-                                <option value="Pending" ${player.feeStatus === 'Pending' ? 'selected' : ''}>Pending</option>
-                            </select>
+
+                        <!-- Fee Information Section -->
+                        <div class="space-y-2">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Joined Fee (Total)</label>
+                                    <div class="bg-slate-900 rounded-xl px-4 py-2 text-white text-sm font-mono">
+                                        ₹${(player.joinedFee || player.feeAmount || 0).toLocaleString('en-IN')}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Amount Paid</label>
+                                    <input type="number" id="modal-edit-amount-paid" value="${player.amountPaid || 0}" ${isReadOnly ? 'disabled' : ''} class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm focus:border-emerald-500 outline-none">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Amount Pending</label>
+                                    <div class="bg-slate-900 rounded-xl px-4 py-2 text-white text-sm font-mono">
+                                        ₹${(player.amountPending !== undefined && player.amountPending !== null) ? Number(player.amountPending).toLocaleString('en-IN') : Math.max(0, (player.joinedFee || player.feeAmount || 0) - (player.amountPaid || 0)).toLocaleString('en-IN')}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Fee Status</label>
+                                    <select id="modal-edit-fee-status" ${isReadOnly ? 'disabled' : ''} class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-emerald-500 outline-none">
+                                        <option value="Paid" ${player.feeStatus === 'Paid' ? 'selected' : ''}>Paid</option>
+                                        <option value="Partial" ${player.feeStatus === 'Partial' ? 'selected' : ''}>Partial</option>
+                                        <option value="Pending" ${player.feeStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -2040,10 +2065,20 @@ class CoachPortal {
         player.startDate = document.getElementById("modal-edit-start-date").value;
         player.endDate = document.getElementById("modal-edit-end-date").value;
         player.skillLevel = document.getElementById("modal-edit-skill").value;
-        player.feeStatus = document.getElementById("modal-edit-fee-status").value;
         player.emergencyContact = document.getElementById("modal-edit-emergency").value;
         player.medicalNotes = document.getElementById("modal-edit-medical").value;
         player.coachNotes = document.getElementById("modal-edit-coach-notes").value;
+
+        // Get amount paid from input
+        const amountPaidInput = document.getElementById("modal-edit-amount-paid");
+        if (amountPaidInput) {
+            player.amountPaid = Number(amountPaidInput.value);
+        }
+
+        // Calculate amount pending and fee status based on joined fee and amount paid
+        const joinedFee = player.joinedFee || player.feeAmount || 0;
+        player.amountPending = Math.max(0, joinedFee - player.amountPaid);
+        player.feeStatus = player.amountPending === 0 ? "Paid" : (player.amountPaid > 0 ? "Partial" : "Pending");
 
         await window.wbFirebaseService.savePlayer(player);
         this.players = await window.wbFirebaseService.getPlayers();
