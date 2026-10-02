@@ -565,6 +565,14 @@ function setupPublicRegistrationForm() {
         // Save to Firebase / LocalStorage
         await window.wbFirebaseService.savePlayer(newPlayer);
 
+        // Live update Coach Portal if initialized
+        if (window.wbCoachPortal) {
+            window.wbCoachPortal.players = await window.wbFirebaseService.getPlayers();
+            window.wbCoachPortal.renderApprovalsTab();
+            window.wbCoachPortal.renderDashboardTab();
+            window.wbCoachPortal.populatePlayerDropdowns();
+        }
+
         // Hide modal
         const modal = document.getElementById("registration-modal");
         if (modal) modal.classList.add("hidden");

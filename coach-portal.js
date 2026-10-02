@@ -85,9 +85,12 @@ class CoachPortal {
         const btnPrevDay = document.getElementById("btn-att-prev");
         if (btnPrevDay) {
             btnPrevDay.addEventListener("click", () => {
-                const d = new Date(this.selectedAttendanceDate);
-                d.setDate(d.getDate() - 1);
-                this.selectedAttendanceDate = d.toISOString().split("T")[0];
+                const parts = this.selectedAttendanceDate.split("-").map(Number);
+                const d = new Date(parts[0], parts[1] - 1, parts[2] - 1);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const dd = String(d.getDate()).padStart(2, "0");
+                this.selectedAttendanceDate = `${yyyy}-${mm}-${dd}`;
                 if (datePicker) datePicker.value = this.selectedAttendanceDate;
                 this.renderAttendanceTab();
             });
@@ -96,9 +99,12 @@ class CoachPortal {
         const btnNextDay = document.getElementById("btn-att-next");
         if (btnNextDay) {
             btnNextDay.addEventListener("click", () => {
-                const d = new Date(this.selectedAttendanceDate);
-                d.setDate(d.getDate() + 1);
-                this.selectedAttendanceDate = d.toISOString().split("T")[0];
+                const parts = this.selectedAttendanceDate.split("-").map(Number);
+                const d = new Date(parts[0], parts[1] - 1, parts[2] + 1);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const dd = String(d.getDate()).padStart(2, "0");
+                this.selectedAttendanceDate = `${yyyy}-${mm}-${dd}`;
                 if (datePicker) datePicker.value = this.selectedAttendanceDate;
                 this.renderAttendanceTab();
             });
