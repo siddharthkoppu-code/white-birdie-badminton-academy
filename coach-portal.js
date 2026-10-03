@@ -1507,7 +1507,9 @@ class CoachPortal {
         if (!pinContainer) return;
 
         try {
-            const currentPin = await window.wbFirebaseService.getCoachPIN();
+            const currentPinData = await window.wbFirebaseService.getCoachPIN();
+            const currentPin = currentPinData ? currentPinData.pin : null;
+            const linkedGmail = currentPinData ? currentPinData.linkedGmail : null;
             pinContainer.innerHTML = `
                 <div class="glass-card p-6 rounded-2xl border border-amber-900/40 mt-6">
                     <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -1518,19 +1520,35 @@ class CoachPortal {
                             <div class="text-sm text-slate-300 mb-2">Current Coach PIN:</div>
                             <div class="text-2xl font-mono font-bold text-emerald-300">${currentPin || 'Not Set'}</div>
                         </div>
+                        ${linkedGmail ? `
+                        <div class="bg-slate-900/60 p-4 rounded-xl">
+                            <div class="text-sm text-slate-300 mb-2">Linked Gmail:</div>
+                            <div class="text-lg font-mono text-emerald-300 break-all">${linkedGmail}</div>
+                        </div>
+                        ` : ''}
+                        <div class="bg-slate-900/60 p-4 rounded-xl">
+                            <div class="text-sm text-slate-300 mb-2">Set New PIN:</div>
+                            <div class="flex gap-2">
+                                <input type="password"
+                                       id="new-coach-pin-input"
+                                       placeholder="Enter new 4-digit PIN"
+                                       maxlength="4"
+                                       pattern="[0-9]*"
+                                       class="flex-1 px-4 py-2 rounded-xl bg-slate-900/60 border border-emerald-500/30 text-white text-center text-lg font-mono tracking-widest focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition">
+                                <input type="email"
+                                       id="new-coach-linked-gmail"
+                                       placeholder="linked@gmail.com"
+                                       class="flex-1 px-4 py-2 rounded-xl bg-slate-900/60 border border-emerald-500/30 text-white text-center text-lg font-mono tracking-widest focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
+                                       value="${linkedGmail || 'coach@whitebirdie.local'}">
+                            </div>
+                        </div>
                         <div class="flex gap-2">
-                            <input type="password"
-                                   id="new-coach-pin-input"
-                                   placeholder="Enter new 4-digit PIN"
-                                   maxlength="4"
-                                   pattern="[0-9]*"
-                                   class="flex-1 px-4 py-2 rounded-xl bg-slate-900/60 border border-emerald-500/30 text-white text-center text-lg font-mono tracking-widest focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition">
                             <button onclick="window.wbCoachPortal.handleSetCoachPIN()"
                                     class="px-6 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-sm shadow-lg hover:shadow-emerald-500/30 transition transform hover:scale-[1.02]">
-                                Set PIN
+                                Update PIN & Gmail
                             </button>
                         </div>
-                        <p class="text-xs text-slate-400">Coaches can use this PIN for quick sign-in without Google authentication.</p>
+                        <p class="text-xs text-slate-400">Coaches can use this PIN for quick sign-in without Google authentication. The PIN will log into the specified Gmail account.</p>
                     </div>
                 </div>
             `;
@@ -1541,18 +1559,27 @@ class CoachPortal {
 
     async handleSetCoachPIN() {
         const pinInput = document.getElementById("new-coach-pin-input");
-        if (!pinInput) return;
+        const gmailInput = document.getElementById("new-coach-linked-gmail");
+        if (!pinInput || !gmailInput) return;
 
         const newPin = pinInput.value.trim();
+        const linkedGmail = gmailInput.value.trim().toLowerCase() || "coach@whitebirdie.local";
+
         if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
             showToast("Please enter exactly 4 digits (0-9)", "error");
             return;
         }
 
+        if (!linkedGmail || !linkedGmail.includes("@")) {
+            showToast("Please enter a valid Gmail address", "error");
+            return;
+        }
+
         try {
-            await window.wbFirebaseService.setCoachPIN(newPin);
-            showToast("✓ Coach PIN updated successfully!", "success");
+            await window.wbFirebaseService.setCoachPIN(newPin, linkedGmail);
+            showToast("✓ Coach PIN and Gmail updated successfully!", "success");
             pinInput.value = "";
+            // Keep the Gmail value in the input for convenience
             this.renderCoachPINSection();
         } catch (e) {
             showToast("Failed to set PIN: " + e.message, "error");
