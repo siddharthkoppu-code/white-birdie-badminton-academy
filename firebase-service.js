@@ -543,16 +543,17 @@ class FirebaseService {
                         role: "coach",
                         linkedPlayerId: null
                     };
-                this.userRole = "coach";
-                this.linkedPlayerId = null;
+                    this.userRole = "coach";
+                    this.linkedPlayerId = null;
 
-                try {
-                    localStorage.setItem(this.storageKeyPrefix + "session_user", JSON.stringify(this.currentUser));
-                    localStorage.setItem(this.storageKeyPrefix + "session_role", "coach");
-                } catch (e) {}
+                    try {
+                        localStorage.setItem(this.storageKeyPrefix + "session_user", JSON.stringify(this.currentUser));
+                        localStorage.setItem(this.storageKeyPrefix + "session_role", "coach");
+                    } catch (e) {}
 
-                this.notifyAuthSubscribers();
-                return true;
+                    this.notifyAuthSubscribers();
+                    return true;
+                }
             }
         } catch (e) {}
 
