@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>White Birdie - Auth Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-900 text-white p-8">
+    <div class="max-w-2xl mx-auto space-y-6">
+        <h1 class="text-3xl font-bold text-emerald-400">Authentication Test</h1>
+
+        <div class="bg-slate-800 p-4 rounded-lg">
+            <h2 class="text-xl font-bold mb-2">Status</h2>
+            <div id="status" class="text-sm font-mono">Initializing...</div>
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-lg space-y-4">
+            <h2 class="text-xl font-bold">Test PIN Login</h2>
+            <div class="flex gap-2">
+                <input type="text" id="pin-input" placeholder="Enter 4-digit PIN" maxlength="4"
+                       class="px-4 py-2 bg-slate-700 rounded text-white">
+                <button id="test-pin" class="px-4 py-2 bg-emerald-600 rounded hover:bg-emerald-500">
+                    Test PIN
+                </button>
+            </div>
+            <div id="pin-result" class="text-sm"></div>
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-lg space-y-4">
+            <h2 class="text-xl font-bold">Test Google Sign-In</h2>
+            <button id="test-google" class="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500">
+                Test Google Sign-In
+            </button>
+            <div id="google-result" class="text-sm"></div>
+        </div>
+
+        <div class="bg-slate-800 p-4 rounded-lg">
+            <h2 class="text-xl font-bold mb-2">Console Log</h2>
+            <div id="console" class="text-xs font-mono space-y-1 max-h-64 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        const log = (msg, type = 'info') => {
+            console.log(msg);
+            const div = document.createElement('div');
+            const colors = {
+                info: 'text-blue-400',
+                success: 'text-emerald-400',
+                error: 'text-red-400',
+                warn: 'text-yellow-400'
+            };
+            div.className = colors[type] || colors.info;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            document.getElementById('console').appendChild(div);
+            document.getElementById('console').scrollTop = document.getElementById('console').scrollHeight;
+        };
+
+        const updateStatus = (msg, type = 'info') => {
+            const el = document.getElementById('status');
+            const colors = {
+                info: 'text-blue-400',
+                success: 'text-emerald-400',
+                error: 'text-red-400'
+            };
+            el.className = 'text-sm font-mono ' + (colors[type] || colors.info);
+            el.textContent = msg;
+        };
+
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAtHWbHRMEsFxApn5puPmx_21ewDvkXUp0",
+            authDomain: "white-birdie.firebaseapp.com",
+            projectId: "white-birdie",
+            storageBucket: "white-birdie.firebasestorage.app",
+            messagingSenderId: "162909632596",
+            appId: "1:162909632596:web:efbe98a06edf2e0aae95c1"
+        };
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            log('Firebase initialized successfully', 'success');
+            updateStatus('Firebase initialized successfully', 'success');
+
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+
+            log('Auth available: ' + (auth ? 'YES' : 'NO'), 'info');
+            log('Firestore available: ' + (db ? 'YES' : 'NO'), 'info');
+
+            // Test PIN
+            document.getElementById('test-pin').addEventListener('click', async () => {
+                const pin = document.getElementById('pin-input').value;
+                const resultDiv = document.getElementById('pin-result');
+
+                log(`Testing PIN: ${pin}`, 'info');
+                resultDiv.textContent = 'Testing PIN...';
+
+                try {
+                    const doc = await db.collection("system").doc("coachPIN").get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        log(`PIN from Firestore: ${data.pin}`, 'info');
+                        log(`Linked Gmail: ${data.linkedGmail || 'none'}`, 'info');
+
+                        if (data.pin === pin) {
+                            resultDiv.className = 'text-sm text-emerald-400';
+                            resultDiv.textContent = '✓ PIN verified! Linked to: ' + (data.linkedGmail || 'coach@whitebirdie.local');
+                            log('PIN verification SUCCESS', 'success');
+                        } else {
+                            resultDiv.className = 'text-sm text-red-400';
+                            resultDiv.textContent = '✗ PIN incorrect';
+                            log('PIN verification FAILED', 'error');
+                        }
+                    } else {
+                        resultDiv.className = 'text-sm text-yellow-400';
+                        resultDiv.textContent = 'No PIN set in Firestore';
+                        log('No PIN found in Firestore', 'warn');
+                    }
+                } catch (e) {
+                    resultDiv.className = 'text-sm text-red-400';
+                    resultDiv.textContent = 'Error: ' + e.message;
+                    log('PIN test error: ' + e.message, 'error');
+                }
+            });
+
+            // Test Google Sign-In
+            document.getElementById('test-google').addEventListener('click', async () => {
+                const resultDiv = document.getElementById('google-result');
+                resultDiv.textContent = 'Opening Google Sign-In...';
+                log('Testing Google Sign-In', 'info');
+
+                try {
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    provider.setCustomParameters({ prompt: 'select_account' });
+
+                    const result = await auth.signInWithPopup(provider);
+                    const user = result.user;
+
+                    log('Google Sign-In SUCCESS', 'success');
+                    log('User email: ' + user.email, 'info');
+                    log('User name: ' + user.displayName, 'info');
+
+                    resultDiv.className = 'text-sm text-emerald-400';
+                    resultDiv.textContent = `✓ Signed in as: ${user.email}`;
+                } catch (e) {
+                    log('Google Sign-In error: ' + e.message, 'error');
+                    log('Error code: ' + e.code, 'error');
+
+                    resultDiv.className = 'text-sm text-red-400';
+                    resultDiv.textContent = 'Error: ' + e.message;
+                }
+            });
+
+        } catch (e) {
+            log('Firebase initialization error: ' + e.message, 'error');
+            updateStatus('Firebase initialization FAILED: ' + e.message, 'error');
+        }
+    </script>
+</body>
+</html>

@@ -2134,7 +2134,6 @@ class CoachPortal {
             this.renderDashboardTab();
             this.renderPlayersTab();
             this.renderAttendanceTab();
-            this.renderPaymentsTab();
 
             showToast(`✅ Monthly fee update complete! ${result.updated} players updated out of ${result.totalChecked} checked.`, "success");
         } catch (error) {
