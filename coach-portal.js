@@ -8,7 +8,7 @@ class CoachPortal {
         this.payments = [];
         this.certificates = [];
         this.allowedGmails = [];
-        this.selectedAttendanceDate = this.getTodayDateString();
+        this.selectedAttendanceDate = "2026-10-10";
         this.selectedAttendanceBatch = "all";
         this.selectedPlayer = null;
         this.filterBatch = "all";
@@ -21,6 +21,11 @@ class CoachPortal {
     }
 
     getTodayDateString() {
+        // Use fixed starting date: 2026-10-10 for attendance
+        return "2026-10-10";
+    }
+
+    getCurrentDateString() {
         const today = new Date();
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, "0");
@@ -76,7 +81,7 @@ class CoachPortal {
         const btnToday = document.getElementById("btn-att-today");
         if (btnToday) {
             btnToday.addEventListener("click", () => {
-                this.selectedAttendanceDate = this.getTodayDateString();
+                this.selectedAttendanceDate = this.getCurrentDateString();
                 if (datePicker) datePicker.value = this.selectedAttendanceDate;
                 this.renderAttendanceTab();
             });
@@ -1246,6 +1251,21 @@ class CoachPortal {
         if (statColl) statColl.textContent = `₹${totalCollected.toLocaleString("en-IN")}`;
         if (statPend) statPend.textContent = `₹${totalPending.toLocaleString("en-IN")}`;
 
+        // Add clear fee button for admin
+        const isAdmin = window.wbFirebaseService.userRole === "admin";
+        if (isAdmin && !document.getElementById("clear-fee-btn")) {
+            const btnContainer = document.createElement("div");
+            btnContainer.className = "mb-4 flex justify-end";
+            btnContainer.innerHTML = `
+                <button id="clear-fee-btn"
+                        onclick="window.wbCoachPortal.handleClearAllFees()"
+                        class="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-bold text-sm shadow-lg hover:shadow-rose-500/30 transition transform hover:scale-[1.02]">
+                    🗑️ Clear All Fee Data
+                </button>
+            `;
+            listContainer.parentElement.insertBefore(btnContainer, listContainer);
+        }
+
         if (this.payments.length === 0) {
             listContainer.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">No payment records logged yet.</td></tr>`;
             return;
@@ -1506,6 +1526,10 @@ class CoachPortal {
         const pinContainer = document.getElementById("coach-pin-management");
         if (!pinContainer) return;
 
+        const currentUser = window.wbFirebaseService.currentUser;
+        const userEmail = currentUser?.email || "coach@whitebirdie.local";
+        const userRole = window.wbFirebaseService.userRole;
+
         try {
             const currentPinData = await window.wbFirebaseService.getCoachPIN();
             const currentPin = currentPinData ? currentPinData.pin : null;
@@ -1522,10 +1546,14 @@ class CoachPortal {
                         </div>
                         ${linkedGmail ? `
                         <div class="bg-slate-900/60 p-4 rounded-xl">
-                            <div class="text-sm text-slate-300 mb-2">Linked Gmail:</div>
+                            <div class="text-sm text-slate-300 mb-2">Currently Linked Gmail:</div>
                             <div class="text-lg font-mono text-emerald-300 break-all">${linkedGmail}</div>
                         </div>
                         ` : ''}
+                        <div class="bg-slate-900/60 p-4 rounded-xl border border-emerald-500/30">
+                            <div class="text-sm text-emerald-300 mb-2">🔗 Auto-linked to your account: <span class="font-mono">${userEmail}</span> (${userRole === 'admin' ? 'Master Admin' : 'Coach'})</div>
+                            <div class="text-xs text-slate-400 mb-3">Your PIN will automatically log into this Gmail account.</div>
+                        </div>
                         <div class="bg-slate-900/60 p-4 rounded-xl">
                             <div class="text-sm text-slate-300 mb-2">Set New PIN:</div>
                             <div class="flex gap-2">
@@ -1539,16 +1567,18 @@ class CoachPortal {
                                        id="new-coach-linked-gmail"
                                        placeholder="linked@gmail.com"
                                        class="flex-1 px-4 py-2 rounded-xl bg-slate-900/60 border border-emerald-500/30 text-white text-center text-lg font-mono tracking-widest focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
-                                       value="${linkedGmail || 'coach@whitebirdie.local'}">
+                                       value="${userEmail}"
+                                       readonly>
                             </div>
+                            <div class="text-xs text-emerald-400 mt-2">Gmail is auto-filled from your login - cannot be changed here</div>
                         </div>
                         <div class="flex gap-2">
                             <button onclick="window.wbCoachPortal.handleSetCoachPIN()"
                                     class="px-6 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-sm shadow-lg hover:shadow-emerald-500/30 transition transform hover:scale-[1.02]">
-                                Update PIN & Gmail
+                                Update PIN (Auto-links to ${userEmail})
                             </button>
                         </div>
-                        <p class="text-xs text-slate-400">Coaches can use this PIN for quick sign-in without Google authentication. The PIN will log into the specified Gmail account.</p>
+                        <p class="text-xs text-slate-400">Coaches/Admins can use this PIN for quick sign-in. It will automatically log into your Gmail account (${userEmail}).</p>
                     </div>
                 </div>
             `;
@@ -1559,27 +1589,28 @@ class CoachPortal {
 
     async handleSetCoachPIN() {
         const pinInput = document.getElementById("new-coach-pin-input");
-        const gmailInput = document.getElementById("new-coach-linked-gmail");
-        if (!pinInput || !gmailInput) return;
+        if (!pinInput) return;
+
+        const currentUser = window.wbFirebaseService.currentUser;
+        const userEmail = currentUser?.email || "coach@whitebirdie.local";
+        const userRole = window.wbFirebaseService.userRole;
+
+        if (userRole !== 'admin' && userRole !== 'coach') {
+            showToast("❌ Only Master Admin and Coaches can set PIN", "error");
+            return;
+        }
 
         const newPin = pinInput.value.trim();
-        const linkedGmail = gmailInput.value.trim().toLowerCase() || "coach@whitebirdie.local";
 
         if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
             showToast("Please enter exactly 4 digits (0-9)", "error");
             return;
         }
 
-        if (!linkedGmail || !linkedGmail.includes("@")) {
-            showToast("Please enter a valid Gmail address", "error");
-            return;
-        }
-
         try {
-            await window.wbFirebaseService.setCoachPIN(newPin, linkedGmail);
-            showToast("✓ Coach PIN and Gmail updated successfully!", "success");
+            await window.wbFirebaseService.setCoachPIN(newPin, userEmail);
+            showToast(`✓ Coach PIN updated successfully! Auto-linked to ${userEmail}`, "success");
             pinInput.value = "";
-            // Keep the Gmail value in the input for convenience
             this.renderCoachPINSection();
         } catch (e) {
             showToast("Failed to set PIN: " + e.message, "error");
@@ -2166,6 +2197,37 @@ class CoachPortal {
         } catch (error) {
             console.error("Error running monthly fee update:", error);
             showToast(`❌ Failed to run fee update: ${error.message}`, "error");
+        }
+    }
+
+    async handleClearAllFees() {
+        const role = window.wbFirebaseService.userRole;
+        if (role !== 'admin') {
+            showToast("❌ Only Master Admin can clear all fee data", "error");
+            return;
+        }
+
+        const confirmed = confirm("⚠️ Are you sure you want to clear ALL fee data for ALL players?\n\nThis will reset:\n- Amount Paid to 0\n- Amount Pending to Original Fee\n- Fee Status to Pending (if amount due) or Paid (if no due)\n\nThis action cannot be undone!");
+        if (!confirmed) return;
+
+        try {
+            showToast("🗑️ Clearing all fee data...", "info");
+            const result = await window.wbFirebaseService.resetAllFeeData();
+
+            // Refresh data
+            this.players = await window.wbFirebaseService.getPlayers();
+            this.payments = await window.wbFirebaseService.getPayments();
+
+            // Update all tabs
+            this.renderDashboardTab();
+            this.renderPlayersTab();
+            this.renderAttendanceTab();
+            this.renderPaymentsTab();
+
+            showToast(`✅ Fee data cleared! ${result.updated} players reset out of ${result.totalChecked} checked.`, "success");
+        } catch (error) {
+            console.error("Error clearing fee data:", error);
+            showToast(`❌ Failed to clear fee data: ${error.message}`, "error");
         }
     }
 

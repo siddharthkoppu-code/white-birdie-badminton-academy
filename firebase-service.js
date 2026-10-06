@@ -668,6 +668,32 @@ class FirebaseService {
 
         return { updated: updatedCount, totalChecked: players.length };
     }
+
+    // Reset all fee data for all players - sets amountPaid to 0, amountPending to joinedFee, and updates feeStatus
+    async resetAllFeeData() {
+        // Only allow admin
+        if (this.userRole !== "admin") {
+            throw new Error("Unauthorized: Only Master Admin can reset fee data.");
+        }
+
+        const players = await this.getPlayers();
+        let updatedCount = 0;
+
+        for (const player of players) {
+            if (player.status !== "Active") continue;
+
+            // Reset fee data
+            player.amountPaid = 0;
+            player.amountPending = player.joinedFee || player.feeAmount || 0;
+            player.feeStatus = player.amountPending > 0 ? "Pending" : "Paid";
+            player.lastFeeUpdate = new Date().toISOString();
+
+            await this.savePlayer(player);
+            updatedCount++;
+        }
+
+        return { updated: updatedCount, totalChecked: players.length };
+    }
 }
 
 // Global instance
